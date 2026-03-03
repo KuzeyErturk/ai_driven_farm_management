@@ -1,0 +1,132 @@
+{
+  "Wheat": {
+    "uk": [
+      "Area_hectares",
+      "Grain_Filling_Temp",
+      "Autumn_Sun",
+      "Flowering_Temp",
+      "Winter_Rain",
+      "Spring_Temp_x_Rain"
+    ],
+    "france": [
+      "Autumn_Sun",
+      "Spring_Rain_Squared",
+      "Flowering_Sun",
+      "Flowering_Temp",
+      "Area_hectares",
+      "Winter_Sun"
+    ],
+    "germany": [
+      "Area_hectares",
+      "Autumn_Tmin",
+      "Flowering_Temp",
+      "Autumn_Sun",
+      "Rain_Deviation_from_Optimal",
+      "Winter_Tmax"
+    ]
+  },
+  "Winter_Barley": {
+    "uk": [
+      "Area_hectares",
+      "Spring_GDD",
+      "Flowering_Temp",
+      "Annual_Rain",
+      "Winter_Tmin",
+      "Summer_Tmin"
+    ],
+    "france": [
+      "Area_hectares",
+      "Autumn_Sun",
+      "Flowering_Sun",
+      "Spring_Temp_x_Rain",
+      "Summer_Tmin",
+      "Winter_Sun"
+    ],
+    "germany": [
+      "Area_hectares",
+      "Flowering_Temp",
+      "Autumn_Tmin",
+      "Summer_Temp_x_Rain",
+      "Winter_Tmax",
+      "Autumn_Sun"
+    ]
+  },
+  "Spring_Barley": {
+    "uk": [
+      "Area_hectares",
+      "Summer_Tmin",
+      "Winter_Rain",
+      "Autumn_Frost",
+      "Harvest_Rain",
+      "Summer_Sun"
+    ],
+    "france": [
+      "Autumn_Sun",
+      "Winter_Sun",
+      "Summer_Tmin",
+      "Spring_Rain_Squared",
+      "Area_hectares",
+      "Spring_Sun"
+    ],
+    "germany": [
+      "Area_hectares",
+      "Planting_Rain",
+      "Flowering_Sun",
+      "Autumn_Tmin",
+      "Summer_Tmax_Peak",
+      "Winter_Sun"
+    ]
+  },
+  "Oats": {
+    "uk": [
+      "Area_hectares",
+      "Summer_Tmin",
+      "Autumn_Frost",
+      "Rain_Deviation_from_Optimal",
+      "Summer_Sun",
+      "Extreme_Summer_Rain"
+    ],
+    "france": [
+      "Autumn_Sun",
+      "Spring_Temp_Range",
+      "Area_hectares",
+      "Winter_Sun",
+      "Spring_Tmin_Coldest",
+      "Flowering_Sun"
+    ],
+    "germany": [
+      "Area_hectares",
+      "Winter_Rain",
+      "Grain_Filling_Temp",
+      "Autumn_Tmin",
+      "Summer_Tmin",
+      "Flowering_Temp"
+    ]
+  },
+  "OSR": {
+    "uk": [
+      "Area_hectares",
+      "Summer_Tmin",
+      "Autumn_Frost",
+      "Autumn_Tmax",
+      "Winter_Rain",
+      "Winter_Tmin"
+    ],
+    "france": [
+      "Area_hectares",
+      "Autumn_Sun",
+      "Spring_Temp_x_Rain",
+      "Summer_Tmin",
+      "Annual_Rain",
+      "Drought_Spring"
+    ],
+    "germany": [
+      "Area_hectares",
+      "Flowering_Temp",
+      "Autumn_Frost",
+      "Late_Spring_Frost",
+      "Winter_Rain",
+      "Spring_Sun"
+    ]
+  }
+}
