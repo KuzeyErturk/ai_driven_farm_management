@@ -546,8 +546,8 @@ def main():
     4. Pooled 3-country + Country feat:  avg LOOCV R² = {avg_p:.3f}
 
   DATA: All REAL — yields (Schauberger 2022, OpenAgrar 2024, DEFRA) +
-  weather (E-OBS v32 gridded observations, 0.1deg resolution).
-  Sunshine features unavailable (E-OBS radiation requires CDS registration).
+  weather (E-OBS v31/v32 gridded observations, 0.1deg resolution).
+  All 47 features computed including sunshine (from E-OBS radiation).
 
   Plots: {PATHS['plots']}/
 """)

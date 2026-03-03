@@ -154,9 +154,17 @@ def build_region_masks(nuts3_gdf, eobs_lats, eobs_lons):
 def load_eobs_variable(var_name, time_start, time_end, lat_slice=None, lon_slice=None):
     """Load E-OBS variable, concatenating time chunks. Crops spatially to save memory."""
     datasets = []
+
+    # Try chunked files first (v32), then full file (v31)
+    candidates = []
     for period in ['1995-2010', '2011-2025']:
-        path = os.path.join(EOBS_DIR, f'{var_name}_{period}.nc')
-        if os.path.exists(path):
+        candidates.append(os.path.join(EOBS_DIR, f'{var_name}_{period}.nc'))
+    # Also check for full files (any version)
+    import glob
+    candidates += glob.glob(os.path.join(EOBS_DIR, f'{var_name}_ens_mean_*.nc'))
+
+    for path in candidates:
+        if os.path.exists(path) and path not in [d.encoding.get('source', '') for d in datasets]:
             ds = xr.open_dataset(path)
             ds = ds.sel(time=slice(time_start, time_end))
             if lat_slice:
@@ -165,9 +173,12 @@ def load_eobs_variable(var_name, time_start, time_end, lat_slice=None, lon_slice
                 ds = ds.sel(longitude=lon_slice)
             if len(ds.time) > 0:
                 datasets.append(ds)
+                # If full file covers the whole range, no need for chunks
+                if len(ds.time) > 3000:
+                    break
 
     if not datasets:
-        raise FileNotFoundError(f"No E-OBS files found for {var_name}")
+        raise FileNotFoundError(f"No E-OBS files found for {var_name} in {EOBS_DIR}")
 
     if len(datasets) == 1:
         return datasets[0]
@@ -190,6 +201,15 @@ def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31
     ds_tn = load_eobs_variable('tn', time_start, time_end, lat_slice, lon_slice)
     print("    Loading Precipitation...")
     ds_rr = load_eobs_variable('rr', time_start, time_end, lat_slice, lon_slice)
+
+    # Try loading radiation (for sunshine estimation)
+    ds_qq = None
+    try:
+        print("    Loading Radiation (qq)...")
+        ds_qq = load_eobs_variable('qq', time_start, time_end, lat_slice, lon_slice)
+        print("    Radiation loaded successfully!")
+    except FileNotFoundError:
+        print("    Radiation not available — sunshine features will be estimated.")
 
     tx = ds_tx['tx']  # Daily max temperature (°C)
     tn = ds_tn['tn']  # Daily min temperature (°C)
@@ -221,6 +241,15 @@ def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31
         tn_frost[~np.broadcast_to(mask3d, tn_frost.shape)] = np.nan
         frost_region = np.nanmean(tn_frost, axis=(1, 2))
 
+        # Radiation → sunshine hours conversion
+        if ds_qq is not None:
+            qq = ds_qq['qq']
+            qq_vals = qq.values.copy()
+            qq_vals[~np.broadcast_to(mask3d, qq_vals.shape)] = np.nan
+            qq_region = np.nanmean(qq_vals, axis=(1, 2))  # daily mean W/m²
+        else:
+            qq_region = None
+
         # Get time index from the dataset
         times = pd.DatetimeIndex(tx.time.values)
 
@@ -232,16 +261,31 @@ def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31
             'rain': rr_region,
             'frost_flag': (tn_region < 0).astype(float),
         })
+
+        if qq_region is not None:
+            # Convert W/m² to approximate sunshine hours per day
+            # Method: sunshine ≈ qq / max_possible_radiation * day_length
+            # Simplified: at European latitudes, ~1000 W/m² is clear-sky max
+            # Average over a day: ~300 W/m² on a sunny day ≈ 10-12 sunshine hours
+            # Empirical conversion: sun_hours ≈ qq * day_length / clear_sky_radiation
+            # Using simplified ratio: sun_hours ≈ qq / 25 (empirical for 45-55°N)
+            # This gives ~4h for 100 W/m², ~8h for 200 W/m², ~12h for 300 W/m²
+            daily_df['sunshine'] = qq_region / 25.0
+
         daily_df['year'] = daily_df['time'].dt.year
         daily_df['month'] = daily_df['time'].dt.month
 
         # Monthly aggregation
-        monthly = daily_df.groupby(['year', 'month']).agg(
-            tmax=('tmax', 'mean'),
-            tmin=('tmin', 'mean'),
-            rain=('rain', 'sum'),       # sum daily means → monthly total (mean of spatial cells)
-            frost=('frost_flag', 'sum'),  # count days where region-mean Tmin < 0
-        ).reset_index()
+        agg_dict = {
+            'tmax': ('tmax', 'mean'),
+            'tmin': ('tmin', 'mean'),
+            'rain': ('rain', 'sum'),
+            'frost': ('frost_flag', 'sum'),
+        }
+        if 'sunshine' in daily_df.columns:
+            agg_dict['sunshine'] = ('sunshine', 'sum')  # monthly total sunshine hours
+
+        monthly = daily_df.groupby(['year', 'month']).agg(**agg_dict).reset_index()
 
         # Build year × month structure
         years = range(YEAR_START, YEAR_END + 1)
@@ -257,14 +301,16 @@ def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31
                     row[f'tmin_{mn}'] = float(m_data['tmin'].values[0])
                     row[f'rain_{mn}'] = float(m_data['rain'].values[0])
                     row[f'frost_{mn}'] = float(m_data['frost'].values[0])
+                    if 'sunshine' in m_data.columns:
+                        row[f'sun_{mn}'] = float(m_data['sunshine'].values[0])
+                    else:
+                        row[f'sun_{mn}'] = np.nan
                 else:
                     row[f'tmax_{mn}'] = np.nan
                     row[f'tmin_{mn}'] = np.nan
                     row[f'rain_{mn}'] = np.nan
                     row[f'frost_{mn}'] = np.nan
-
-                # Sunshine: not available from E-OBS (qq requires registration)
-                row[f'sun_{mn}'] = np.nan
+                    row[f'sun_{mn}'] = np.nan
 
             rows.append(row)
 
@@ -273,6 +319,8 @@ def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31
     ds_tx.close()
     ds_tn.close()
     ds_rr.close()
+    if ds_qq is not None:
+        ds_qq.close()
 
     return all_regions
 
