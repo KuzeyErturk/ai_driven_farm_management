@@ -1,0 +1,9 @@
+Crop,Year,Event,Actual,Predicted,Actual_Dev,Pred_Dev,Error,Direction_Correct,Method
+Wheat,2010,Cold Winter,7.7749999999999995,7.275,0.026315789473682294,-0.4736842105263168,0.4999999999999991,True,Moderate Extreme (1 indicator: High_Frost)
+Wheat,2012,Wet Summer,6.3,7.275,-1.4486842105263174,-0.4736842105263168,0.9750000000000005,True,Moderate Extreme (1 indicator: High_Rain)
+Barley,2010,Cold Winter,5.625,5.475,-0.19473684210526354,-0.3447368421052639,0.15000000000000036,True,Moderate Extreme (1 indicator: High_Frost)
+Barley,2012,Wet Summer,5.2,5.475,-0.6197368421052634,-0.3447368421052639,0.27499999999999947,True,Moderate Extreme (1 indicator: High_Rain)
+Oats,2010,Cold Winter,5.6000000000000005,5.275,0.053947368421052744,-0.27105263157894743,0.3250000000000002,True,Moderate Extreme (1 indicator: High_Frost)
+Oats,2012,Wet Summer,4.949999999999999,5.275,-0.5960526315789485,-0.27105263157894743,0.32500000000000107,True,Moderate Extreme (1 indicator: High_Rain)
+Oilseed_Rape,2010,Cold Winter,3.475,3.1,0.06315789473684186,-0.31184210526315814,0.375,True,Moderate Extreme (1 indicator: High_Frost)
+Oilseed_Rape,2012,Wet Summer,3.275,3.1,-0.13684210526315832,-0.31184210526315814,0.17499999999999982,True,Moderate Extreme (1 indicator: High_Rain)

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agricultural AI - Crop Yield Prediction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container">
+            <a class="navbar-brand" href="/">Agricultural AI</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link active" href="/">Predict</a>
+                <a class="nav-link" href="/scenario">Scenario Analysis</a>
+                <a class="nav-link" href="/risk">Risk Assessment</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="mb-0">Crop Yield Prediction</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="predictionForm">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Crop Type</label>
+                                    <select class="form-select" id="crop" name="crop">
+                                        {% for crop in crops %}
+                                        <option value="{{ crop }}">{{ crop.replace('_', ' ') }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Region</label>
+                                    <select class="form-select" id="region" name="region">
+                                        {% for region in regions %}
+                                        <option value="{{ region }}">{{ region }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <h5 class="mt-4 mb-3">Weather Conditions</h5>
+                            <div class="row">
+                                {% for feature, config in weather_ranges.items() %}
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">
+                                        {{ feature.replace('_', ' ') }} ({{ config.unit }})
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="range" class="form-range"
+                                               id="{{ feature }}" name="{{ feature }}"
+                                               min="{{ config.min }}" max="{{ config.max }}"
+                                               value="{{ config.default }}"
+                                               oninput="updateValue('{{ feature }}')">
+                                        <span class="input-group-text weather-value" id="{{ feature }}_value">
+                                            {{ config.default }}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="d-grid gap-2 mt-4">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    Predict Yield
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card" id="resultCard" style="display: none;">
+                    <div class="card-header">
+                        <h5 class="mb-0">Prediction Result</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-4">
+                            <h2 class="text-success" id="predictionValue">--</h2>
+                            <p class="text-muted">tonnes per hectare</p>
+                        </div>
+
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <small class="text-muted">Historical Avg</small>
+                                <h5 id="historicalAvg">--</h5>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Deviation</small>
+                                <h5 id="deviation">--</h5>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <small class="text-muted">Confidence: </small>
+                            <small id="confidenceText">Medium</small>
+                        </div>
+
+                        <div id="extremeConditions" style="display: none;">
+                            <h6>Extreme Conditions Detected:</h6>
+                            <ul id="extremeList" class="list-group list-group-flush"></ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-3" id="recommendationsCard" style="display: none;">
+                    <div class="card-header">
+                        <h6 class="mb-0">Recommended Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul id="recommendationsList" class="list-group list-group-flush"></ul>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">Quick Reference</h6>
+                    </div>
+                    <div class="card-body">
+                        <small>
+                            <strong>Historical Averages (t/ha):</strong>
+                            <ul class="mb-0">
+                                <li>Wheat: 8.0</li>
+                                <li>Winter Barley: 6.5</li>
+                                <li>Spring Barley: 5.5</li>
+                                <li>Oats: 5.8</li>
+                                <li>OSR: 3.2</li>
+                            </ul>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-5 py-3 bg-light">
+        <div class="container text-center">
+            <small class="text-muted">
+                Agricultural AI - Crop Yield Prediction System | Dissertation Project 2024
+            </small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateValue(feature) {
+            const slider = document.getElementById(feature);
+            const display = document.getElementById(feature + '_value');
+            display.textContent = slider.value;
+        }
+
+        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = {
+                crop: document.getElementById('crop').value,
+                region: document.getElementById('region').value,
+                summer_rain: document.getElementById('Summer_Rain').value,
+                summer_sun: document.getElementById('Summer_Sun').value,
+                winter_frost: document.getElementById('Winter_Frost').value,
+                spring_rain: document.getElementById('Spring_Rain').value,
+                spring_frost: document.getElementById('Spring_Frost').value,
+                summer_tmax: document.getElementById('Summer_Tmax').value,
+                grain_filling_rain: document.getElementById('Grain_Filling_Rain').value,
+                grain_filling_sun: document.getElementById('Grain_Filling_Sun').value
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('resultCard').style.display = 'block';
+                    document.getElementById('predictionValue').textContent = result.prediction;
+                    document.getElementById('historicalAvg').textContent = result.historical_avg + ' t/ha';
+
+                    const deviation = result.deviation;
+                    const deviationEl = document.getElementById('deviation');
+                    deviationEl.textContent = (deviation >= 0 ? '+' : '') + deviation + ' t/ha';
+                    deviationEl.className = deviation >= 0 ? 'text-success' : 'text-danger';
+
+                    // Confidence
+                    const confidenceText = document.getElementById('confidenceText');
+                    confidenceText.textContent = result.confidence;
+
+                    // Extreme conditions
+                    const extremeDiv = document.getElementById('extremeConditions');
+                    const extremeList = document.getElementById('extremeList');
+                    const recommendationsCard = document.getElementById('recommendationsCard');
+                    const recommendationsList = document.getElementById('recommendationsList');
+                    extremeList.innerHTML = '';
+                    recommendationsList.innerHTML = '';
+
+                    if (result.extreme_conditions && result.extreme_conditions.length > 0) {
+                        extremeDiv.style.display = 'block';
+                        recommendationsCard.style.display = 'block';
+                        result.extreme_conditions.forEach(condition => {
+                            const li = document.createElement('li');
+                            li.className = 'list-group-item';
+                            const badge = condition.impact === 'Negative' ?
+                                '<span class="badge bg-danger">-</span>' :
+                                '<span class="badge bg-success">+</span>';
+                            li.innerHTML = `${badge} <strong>${condition.condition}</strong><br>
+                                           <small>${condition.description}</small>`;
+                            extremeList.appendChild(li);
+
+                            // Add recommendation
+                            if (condition.recommendation) {
+                                const recLi = document.createElement('li');
+                                recLi.className = 'list-group-item';
+                                recLi.innerHTML = `<strong>${condition.condition}:</strong><br>
+                                                   <small>${condition.recommendation}</small>`;
+                                recommendationsList.appendChild(recLi);
+                            }
+                        });
+                    } else {
+                        extremeDiv.style.display = 'none';
+                        recommendationsCard.style.display = 'none';
+                    }
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Request failed: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>

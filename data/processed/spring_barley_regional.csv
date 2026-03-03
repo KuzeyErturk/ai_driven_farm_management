@@ -1,0 +1,85 @@
+Year,Region,Crop,Area_hectares,Yield_t_per_ha
+2004,England,Spring_Barley,291439,5.1
+2005,England,Spring_Barley,274215,5.4
+2006,England,Spring_Barley,242772,5.1
+2007,England,Spring_Barley,258092,5.1
+2008,England,Spring_Barley,318953,5.4
+2009,England,Spring_Barley,413208,5.6
+2010,England,Spring_Barley,265551,5.0
+2011,England,Spring_Barley,316248,5.2
+2012,England,Spring_Barley,293991,5.0
+2013,England,Spring_Barley,570808,5.6
+2014,England,Spring_Barley,345476,5.8
+2015,England,Spring_Barley,372652,6.2
+2016,England,Spring_Barley,415604,5.7
+2017,England,Spring_Barley,481587,5.5
+2018,England,Spring_Barley,471081,5.0
+2019,England,Spring_Barley,443933,6.4
+2020,England,Spring_Barley,791710,5.4
+2021,England,Spring_Barley,470929,5.6
+2022,England,Spring_Barley,410358,5.9
+2023,England,Spring_Barley,408306,5.1
+2024,England,Spring_Barley,523614,5.4
+2004,Wales,Spring_Barley,15623,4.6
+2005,Wales,Spring_Barley,14196,4.6
+2006,Wales,Spring_Barley,12144,4.7
+2007,Wales,Spring_Barley,12765,4.9
+2008,Wales,Spring_Barley,14801,4.8
+2009,Wales,Spring_Barley,17923,5.3
+2010,Wales,Spring_Barley,13158,4.9
+2011,Wales,Spring_Barley,14683,5.4
+2012,Wales,Spring_Barley,14094,4.4
+2013,Wales,Spring_Barley,15428,5.4
+2014,Wales,Spring_Barley,14103,5.2
+2015,Wales,Spring_Barley,15136,5.4
+2016,Wales,Spring_Barley,13757,5.3
+2017,Wales,Spring_Barley,14438,4.6
+2018,Wales,Spring_Barley,15016,4.6
+2019,Wales,Spring_Barley,11542,5.7
+2020,Wales,Spring_Barley,13163,5.1
+2021,Wales,Spring_Barley,12105,5.2
+2022,Wales,Spring_Barley,12353,5.5
+2023,Wales,Spring_Barley,11062,4.4
+2024,Wales,Spring_Barley,14974,5.0
+2004,Scotland,Spring_Barley,257462,5.6
+2005,Scotland,Spring_Barley,243298,5.6
+2006,Scotland,Spring_Barley,220639,5.7
+2007,Scotland,Spring_Barley,226019,5.6
+2008,Scotland,Spring_Barley,262322,5.5
+2009,Scotland,Spring_Barley,287011,5.5
+2010,Scotland,Spring_Barley,242364,5.5
+2011,Scotland,Spring_Barley,262948,5.6
+2012,Scotland,Spring_Barley,289222,5.0
+2013,Scotland,Spring_Barley,296444,5.8
+2014,Scotland,Spring_Barley,274377,6.1
+2015,Scotland,Spring_Barley,255878,5.9
+2016,Scotland,Spring_Barley,238899,5.4
+2017,Scotland,Spring_Barley,243838,5.9
+2018,Scotland,Spring_Barley,250476,5.5
+2019,Scotland,Spring_Barley,242090,6.4
+2020,Scotland,Spring_Barley,258702,6.8
+2021,Scotland,Spring_Barley,248921,5.8
+2022,Scotland,Spring_Barley,244717,6.6
+2023,Scotland,Spring_Barley,249463,6.3
+2024,Scotland,Spring_Barley,257507,6.5
+2004,Northern Ireland,Spring_Barley,22492,4.8
+2005,Northern Ireland,Spring_Barley,21728,4.3
+2006,Northern Ireland,Spring_Barley,18226,4.6
+2007,Northern Ireland,Spring_Barley,18087,5.0
+2008,Northern Ireland,Spring_Barley,19546,4.5
+2009,Northern Ireland,Spring_Barley,21625,4.9
+2010,Northern Ireland,Spring_Barley,17558,5.1
+2011,Northern Ireland,Spring_Barley,17200,5.2
+2012,Northern Ireland,Spring_Barley,20211,4.7
+2013,Northern Ireland,Spring_Barley,20491,5.0
+2014,Northern Ireland,Spring_Barley,16846,5.2
+2015,Northern Ireland,Spring_Barley,15687,5.5
+2016,Northern Ireland,Spring_Barley,14708,5.0
+2017,Northern Ireland,Spring_Barley,14031,4.7
+2018,Northern Ireland,Spring_Barley,14894,5.2
+2019,Northern Ireland,Spring_Barley,11948,5.4
+2020,Northern Ireland,Spring_Barley,12370,5.3
+2021,Northern Ireland,Spring_Barley,12898,6.0
+2022,Northern Ireland,Spring_Barley,13353,5.8
+2023,Northern Ireland,Spring_Barley,13113,4.4
+2024,Northern Ireland,Spring_Barley,13597,6.0

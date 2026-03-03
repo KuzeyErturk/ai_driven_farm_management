@@ -1,0 +1,36 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+
+# Large data files (E-OBS ~4GB, GADM ~180MB)
+data/weather/eobs/*.nc
+data/weather/gadm/nuts_2021.zip
+data/france/raw/france_ PANGAEA/
+data/france/raw/synthetic_monthly_weather*.pkl
+data/france/raw/Germany_raw_data.csv
+
+# Model files
+flask_app/models/*.pkl
+flask_app/models_backup_*/
+
+# Backups
+src_backup_*/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Documents (optional - uncomment if you want to include them)
+# *.pdf
+# *.docx
+# *.xlsx

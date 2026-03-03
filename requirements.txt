@@ -1,0 +1,25 @@
+# Agricultural AI Crop Yield Prediction
+# Core dependencies
+
+# Data manipulation
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Machine Learning
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+
+# Model Explainability
+shap>=0.42.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.15.0
+
+# Web Application
+flask>=3.0.0
+gunicorn>=21.0.0
+
+# Utilities
+joblib>=1.3.0

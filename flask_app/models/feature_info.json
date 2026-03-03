@@ -1,0 +1,54 @@
+{
+  "features": [
+    "Summer_Rain",
+    "Summer_Sun",
+    "Winter_Frost",
+    "Spring_Rain",
+    "Spring_Frost",
+    "Summer_Tmax",
+    "Grain_Filling_Rain",
+    "Grain_Filling_Sun"
+  ],
+  "feature_ranges": {
+    "Summer_Rain": {
+      "min": 100,
+      "max": 400,
+      "unit": "mm"
+    },
+    "Summer_Sun": {
+      "min": 400,
+      "max": 700,
+      "unit": "hours"
+    },
+    "Winter_Frost": {
+      "min": 10,
+      "max": 50,
+      "unit": "days"
+    },
+    "Spring_Rain": {
+      "min": 100,
+      "max": 300,
+      "unit": "mm"
+    },
+    "Spring_Frost": {
+      "min": 0,
+      "max": 20,
+      "unit": "days"
+    },
+    "Summer_Tmax": {
+      "min": 18,
+      "max": 26,
+      "unit": "C"
+    },
+    "Grain_Filling_Rain": {
+      "min": 50,
+      "max": 250,
+      "unit": "mm"
+    },
+    "Grain_Filling_Sun": {
+      "min": 200,
+      "max": 500,
+      "unit": "hours"
+    }
+  }
+}

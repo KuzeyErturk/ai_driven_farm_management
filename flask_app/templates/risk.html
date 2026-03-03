@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Assessment - Agricultural AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .risk-score-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .risk-low { color: #28a745; }
+        .risk-moderate { color: #6c757d; }
+        .risk-high { color: #fd7e14; }
+        .risk-critical { color: #dc3545; }
+        .climate-factor {
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            margin-bottom: 0.5rem;
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container">
+            <a class="navbar-brand" href="/">Agricultural AI</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">Predict</a>
+                <a class="nav-link" href="/scenario">Scenario Analysis</a>
+                <a class="nav-link active" href="/risk">Risk Assessment</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h2>Risk Assessment Dashboard</h2>
+                <p class="text-muted">
+                    Evaluate agricultural risks based on weather conditions, climate projections, and financial impact.
+                </p>
+            </div>
+        </div>
+
+        <!-- Input Form -->
+        <div class="row mt-3">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Risk Parameters</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="riskForm">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label class="form-label">Crop Type</label>
+                                    <select class="form-select" id="crop" name="crop">
+                                        {% for crop in crops %}
+                                        <option value="{{ crop }}">{{ crop.replace('_', ' ') }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Region</label>
+                                    <select class="form-select" id="region" name="region">
+                                        {% for region in regions %}
+                                        <option value="{{ region }}">{{ region }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Farm Size (hectares)</label>
+                                    <input type="number" class="form-control" id="hectares" value="100" min="1" max="10000">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Projection Years</label>
+                                    <select class="form-select" id="years_ahead">
+                                        <option value="5">5 years (2031)</option>
+                                        <option value="10" selected>10 years (2036)</option>
+                                        <option value="20">20 years (2046)</option>
+                                        <option value="30">30 years (2056)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <h6 class="mt-4 mb-3">Weather Conditions</h6>
+                            <div class="row">
+                                {% for feature, config in weather_ranges.items() %}
+                                <div class="col-md-3 mb-3">
+                                    <label class="form-label">
+                                        {{ feature.replace('_', ' ') }}
+                                        <span class="text-muted" id="{{ feature }}_value">{{ config.default }}</span>
+                                        {{ config.unit }}
+                                    </label>
+                                    <input type="range" class="form-range"
+                                           id="{{ feature }}" name="{{ feature }}"
+                                           min="{{ config.min }}" max="{{ config.max }}"
+                                           value="{{ config.default }}"
+                                           oninput="updateValue('{{ feature }}')">
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="d-grid gap-2 mt-3">
+                                <button type="submit" class="btn btn-secondary btn-lg">
+                                    Assess Risk
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section (hidden by default) -->
+        <div id="resultsSection" style="display: none;">
+            <!-- Overall Risk Score -->
+            <div class="row mt-4">
+                <div class="col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Overall Risk Score</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <div class="risk-score-display" id="overallScore">--</div>
+                            <p class="lead" id="riskLevel">--</p>
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar" id="riskProgressBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small class="text-muted mt-2 d-block">0 = No Risk, 100 = Critical Risk</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-8">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Individual Risk Factors</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row" id="individualRisks">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Climate and Financial -->
+            <div class="row mt-4">
+                <div class="col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Climate Change Projection</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center mb-4">
+                                <div class="col-4">
+                                    <small class="text-muted">Current Expected</small>
+                                    <h4 id="currentYield">--</h4>
+                                    <small>t/ha</small>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted">Projected</small>
+                                    <h4 id="projectedYield" class="text-danger">--</h4>
+                                    <small>t/ha</small>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted">With Adaptation</small>
+                                    <h4 id="adaptedYield" class="text-success">--</h4>
+                                    <small>t/ha</small>
+                                </div>
+                            </div>
+                            <h6>Key Climate Factors:</h6>
+                            <div id="climateFactors">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Financial Risk Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table">
+                                <tbody>
+                                    <tr>
+                                        <td>Expected Income (baseline)</td>
+                                        <td class="text-end fw-bold" id="expectedIncome">--</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Income at Risk</td>
+                                        <td class="text-end fw-bold text-warning" id="incomeAtRisk">--</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Worst Case Loss</td>
+                                        <td class="text-end fw-bold text-danger" id="worstCaseLoss">--</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Expected Yield Reduction</td>
+                                        <td class="text-end" id="yieldReduction">--</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div id="insuranceAlert" class="alert alert-warning" style="display: none;">
+                                <strong>Recommendation:</strong> Consider crop insurance based on current risk level.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="row mt-4">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Risk Mitigation Recommendations</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="recommendations">
+                                <!-- Populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Historical Risk Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="trendChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-5 py-3 bg-light">
+        <div class="container text-center">
+            <small class="text-muted">
+                Agricultural AI - Risk Assessment Dashboard | Dissertation Project 2024
+            </small>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let trendChart;
+
+        function updateValue(feature) {
+            const slider = document.getElementById(feature);
+            const display = document.getElementById(feature + '_value');
+            display.textContent = slider.value;
+        }
+
+        document.getElementById('riskForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = {
+                crop: document.getElementById('crop').value,
+                region: document.getElementById('region').value,
+                hectares: document.getElementById('hectares').value,
+                years_ahead: document.getElementById('years_ahead').value,
+                Summer_Rain: document.getElementById('Summer_Rain').value,
+                Summer_Sun: document.getElementById('Summer_Sun').value,
+                Winter_Frost: document.getElementById('Winter_Frost').value,
+                Spring_Rain: document.getElementById('Spring_Rain').value,
+                Spring_Frost: document.getElementById('Spring_Frost').value,
+                Summer_Tmax: document.getElementById('Summer_Tmax').value,
+                Grain_Filling_Rain: document.getElementById('Grain_Filling_Rain').value,
+                Grain_Filling_Sun: document.getElementById('Grain_Filling_Sun').value
+            };
+
+            try {
+                const response = await fetch('/api/risk', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayResults(result);
+                    document.getElementById('resultsSection').style.display = 'block';
+                    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Request failed: ' + error.message);
+            }
+        });
+
+        function displayResults(data) {
+            // Overall Risk Score
+            const risk = data.risk_assessment;
+            const score = risk.overall_score;
+            const level = risk.risk_level;
+
+            document.getElementById('overallScore').textContent = score;
+            document.getElementById('overallScore').className = 'risk-score-display risk-' + level.toLowerCase();
+            document.getElementById('riskLevel').textContent = level + ' Risk';
+
+            const progressBar = document.getElementById('riskProgressBar');
+            progressBar.style.width = score + '%';
+            progressBar.className = 'progress-bar';
+            if (score < 25) progressBar.classList.add('bg-success');
+            else if (score < 50) progressBar.classList.add('bg-warning');
+            else if (score < 75) progressBar.classList.add('bg-orange');
+            else progressBar.classList.add('bg-danger');
+
+            // Individual Risks
+            const risksContainer = document.getElementById('individualRisks');
+            risksContainer.innerHTML = '';
+
+            if (risk.individual_risks.length === 0) {
+                risksContainer.innerHTML = '<div class="col-12 text-center text-muted">No significant risks detected</div>';
+            } else {
+                risk.individual_risks.forEach(([riskType, riskScore]) => {
+                    const riskClass = riskScore < 40 ? 'success' : riskScore < 60 ? 'warning' : 'danger';
+                    risksContainer.innerHTML += `
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h6>${riskType}</h6>
+                                    <h4 class="text-${riskClass}">${riskScore}%</h4>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            // Climate Projection
+            const climate = data.climate_projection;
+            document.getElementById('currentYield').textContent = climate.current_expected;
+            document.getElementById('projectedYield').textContent = climate.projected_yield;
+            document.getElementById('adaptedYield').textContent = climate.adapted_yield;
+
+            const climateFactors = document.getElementById('climateFactors');
+            climateFactors.innerHTML = '';
+            climate.key_factors.forEach(factor => {
+                const impactClass = factor.impact === 'Negative' ? 'text-danger' : 'text-success';
+                climateFactors.innerHTML += `
+                    <div class="climate-factor d-flex justify-content-between">
+                        <span>${factor.factor}</span>
+                        <span class="${impactClass}"><strong>${factor.change}</strong></span>
+                    </div>
+                `;
+            });
+
+            // Financial Risk
+            const financial = data.financial_risk;
+            document.getElementById('expectedIncome').textContent = financial.expected_income_formatted;
+            document.getElementById('incomeAtRisk').textContent = financial.income_at_risk_formatted;
+            document.getElementById('worstCaseLoss').textContent = financial.worst_case_loss_formatted;
+            document.getElementById('yieldReduction').textContent = '-' + financial.yield_reduction_percent + '%';
+
+            if (financial.insurance_recommended) {
+                document.getElementById('insuranceAlert').style.display = 'block';
+            } else {
+                document.getElementById('insuranceAlert').style.display = 'none';
+            }
+
+            // Recommendations
+            const recsContainer = document.getElementById('recommendations');
+            recsContainer.innerHTML = '';
+            risk.recommendations.forEach(rec => {
+                const priorityClass = rec.priority === 'High' ? 'text-danger' :
+                                     rec.priority === 'Medium' ? 'text-warning' : 'text-muted';
+                recsContainer.innerHTML += `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title mb-1">${rec.action}</h6>
+                                    <p class="card-text text-muted mb-1">${rec.detail}</p>
+                                    <small class="text-muted">Timing: ${rec.timing}</small>
+                                </div>
+                                <span class="${priorityClass}">${rec.priority}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Historical Trend Chart
+            updateTrendChart(data.historical_trend);
+        }
+
+        function updateTrendChart(trendData) {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+
+            if (trendChart) {
+                trendChart.destroy();
+            }
+
+            const years = trendData.map(d => d.year);
+            const scores = trendData.map(d => d.risk_score);
+
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Risk Score',
+                        data: scores,
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        backgroundColor: 'rgba(255, 193, 7, 0.2)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: 'Risk Score' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: 'Risk Trend (Increasing due to climate change)'
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

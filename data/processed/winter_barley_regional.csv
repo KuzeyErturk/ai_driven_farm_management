@@ -1,0 +1,85 @@
+Year,Region,Crop,Area_hectares,Yield_t_per_ha
+2004,England,Winter_Barley,350923,6.3
+2005,England,Winter_Barley,321312,6.4
+2006,England,Winter_Barley,322258,6.6
+2007,England,Winter_Barley,318829,5.9
+2008,England,Winter_Barley,345903,6.6
+2009,England,Winter_Barley,346598,6.3
+2010,England,Winter_Barley,320475,6.3
+2011,England,Winter_Barley,298254,6.0
+2012,England,Winter_Barley,328796,6.4
+2013,England,Winter_Barley,256899,6.4
+2014,England,Winter_Barley,363227,7.1
+2015,England,Winter_Barley,375812,7.6
+2016,England,Winter_Barley,375650,6.4
+2017,England,Winter_Barley,360873,6.9
+2018,England,Winter_Barley,335654,6.8
+2019,England,Winter_Barley,387918,7.8
+2020,England,Winter_Barley,253279,6.0
+2021,England,Winter_Barley,345220,6.6
+2022,England,Winter_Barley,371723,7.3
+2023,England,Winter_Barley,390983,7.0
+2024,England,Winter_Barley,325474,6.2
+2004,Wales,Winter_Barley,8643,6.3
+2005,Wales,Winter_Barley,7570,6.0
+2006,Wales,Winter_Barley,6985,5.5
+2007,Wales,Winter_Barley,6750,5.5
+2008,Wales,Winter_Barley,6748,6.1
+2009,Wales,Winter_Barley,6352,6.0
+2010,Wales,Winter_Barley,7279,6.2
+2011,Wales,Winter_Barley,8097,6.3
+2012,Wales,Winter_Barley,7731,5.7
+2013,Wales,Winter_Barley,4966,6.3
+2014,Wales,Winter_Barley,6580,6.5
+2015,Wales,Winter_Barley,6926,7.2
+2016,Wales,Winter_Barley,8132,6.2
+2017,Wales,Winter_Barley,7351,6.6
+2018,Wales,Winter_Barley,7670,6.1
+2019,Wales,Winter_Barley,8253,7.6
+2020,Wales,Winter_Barley,7473,6.0
+2021,Wales,Winter_Barley,8482,6.9
+2022,Wales,Winter_Barley,9069,7.0
+2023,Wales,Winter_Barley,8898,6.6
+2024,Wales,Winter_Barley,9039,5.8
+2004,Scotland,Winter_Barley,56348,7.2
+2005,Scotland,Winter_Barley,51341,7.4
+2006,Scotland,Winter_Barley,53762,7.7
+2007,Scotland,Winter_Barley,52625,7.3
+2008,Scotland,Winter_Barley,57612,7.4
+2009,Scotland,Winter_Barley,45149,7.1
+2010,Scotland,Winter_Barley,48010,7.0
+2011,Scotland,Winter_Barley,45477,7.1
+2012,Scotland,Winter_Barley,42816,6.5
+2013,Scotland,Winter_Barley,42694,6.6
+2014,Scotland,Winter_Barley,52507,7.8
+2015,Scotland,Winter_Barley,51808,7.8
+2016,Scotland,Winter_Barley,48031,6.8
+2017,Scotland,Winter_Barley,47509,7.4
+2018,Scotland,Winter_Barley,37542,7.1
+2019,Scotland,Winter_Barley,48802,8.2
+2020,Scotland,Winter_Barley,43091,7.3
+2021,Scotland,Winter_Barley,43246,7.7
+2022,Scotland,Winter_Barley,45659,7.9
+2023,Scotland,Winter_Barley,46358,7.5
+2024,Scotland,Winter_Barley,42874,7.6
+2004,Northern Ireland,Winter_Barley,4519,6.9
+2005,Northern Ireland,Winter_Barley,4012,6.0
+2006,Northern Ireland,Winter_Barley,4599,6.7
+2007,Northern Ireland,Winter_Barley,4730,6.2
+2008,Northern Ireland,Winter_Barley,6149,7.0
+2009,Northern Ireland,Winter_Barley,5120,6.7
+2010,Northern Ireland,Winter_Barley,6767,7.3
+2011,Northern Ireland,Winter_Barley,6848,7.1
+2012,Northern Ireland,Winter_Barley,5323,6.1
+2013,Northern Ireland,Winter_Barley,5266,7.0
+2014,Northern Ireland,Winter_Barley,6709,7.1
+2015,Northern Ireland,Winter_Barley,7021,7.7
+2016,Northern Ireland,Winter_Barley,7628,6.8
+2017,Northern Ireland,Winter_Barley,7114,6.8
+2018,Northern Ireland,Winter_Barley,5809,6.9
+2019,Northern Ireland,Winter_Barley,7739,8.1
+2020,Northern Ireland,Winter_Barley,7734,5.8
+2021,Northern Ireland,Winter_Barley,7944,7.5
+2022,Northern Ireland,Winter_Barley,8604,7.0
+2023,Northern Ireland,Winter_Barley,8340,6.5
+2024,Northern Ireland,Winter_Barley,6841,6.5
