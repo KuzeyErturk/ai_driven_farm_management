@@ -6,6 +6,11 @@
     <title>Agricultural AI - Crop Yield Prediction</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .model-badge { font-size: 0.8rem; }
+        .toggle-switch { cursor: pointer; }
+        .feature-slider { transition: opacity 0.3s; }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-success">
@@ -23,15 +28,16 @@
         <div class="row">
             <div class="col-lg-8">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h4 class="mb-0">Crop Yield Prediction</h4>
+                        <span class="badge bg-secondary model-badge" id="modelBadge"></span>
                     </div>
                     <div class="card-body">
                         <form id="predictionForm">
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Crop Type</label>
-                                    <select class="form-select" id="crop" name="crop">
+                                    <select class="form-select" id="crop" name="crop" onchange="onCropChange()">
                                         {% for crop in crops %}
                                         <option value="{{ crop }}">{{ crop.replace('_', ' ') }}</option>
                                         {% endfor %}
@@ -48,24 +54,8 @@
                             </div>
 
                             <h5 class="mt-4 mb-3">Weather Conditions</h5>
-                            <div class="row">
-                                {% for feature, config in weather_ranges.items() %}
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        {{ feature.replace('_', ' ') }} ({{ config.unit }})
-                                    </label>
-                                    <div class="input-group">
-                                        <input type="range" class="form-range"
-                                               id="{{ feature }}" name="{{ feature }}"
-                                               min="{{ config.min }}" max="{{ config.max }}"
-                                               value="{{ config.default }}"
-                                               oninput="updateValue('{{ feature }}')">
-                                        <span class="input-group-text weather-value" id="{{ feature }}_value">
-                                            {{ config.default }}
-                                        </span>
-                                    </div>
-                                </div>
-                                {% endfor %}
+                            <div class="row" id="featuresContainer">
+                                <!-- Dynamically built by JavaScript -->
                             </div>
 
                             <div class="d-grid gap-2 mt-4">
@@ -152,27 +142,101 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function updateValue(feature) {
-            const slider = document.getElementById(feature);
-            const display = document.getElementById(feature + '_value');
-            display.textContent = slider.value;
+        // Model config passed from server
+        const modelConfig = {{ model_config | tojson }};
+
+        function buildFeatureInputs(crop) {
+            const config = modelConfig[crop];
+            if (!config) return;
+
+            const container = document.getElementById('featuresContainer');
+            container.innerHTML = '';
+
+            // Update model badge
+            const badge = document.getElementById('modelBadge');
+            badge.textContent = 'Model: ' + config.model_type;
+
+            const features = config.features;
+            for (const [name, meta] of Object.entries(features)) {
+                const col = document.createElement('div');
+                col.className = 'col-md-6 mb-3 feature-slider';
+
+                if (meta.input_type === 'toggle') {
+                    col.innerHTML = `
+                        <label class="form-label">${meta.label}</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input toggle-switch" type="checkbox"
+                                   id="${name}" name="${name}"
+                                   ${meta.default === 1 ? 'checked' : ''}>
+                            <label class="form-check-label" for="${name}" id="${name}_label">
+                                ${meta.default === 1 ? 'Yes' : 'No'}
+                            </label>
+                        </div>`;
+                    col.querySelector('input').addEventListener('change', function() {
+                        document.getElementById(name + '_label').textContent = this.checked ? 'Yes' : 'No';
+                    });
+                } else if (meta.input_type === 'number') {
+                    col.innerHTML = `
+                        <label class="form-label">${meta.label} (${meta.unit})</label>
+                        <input type="number" class="form-control"
+                               id="${name}" name="${name}"
+                               min="${meta.min}" max="${meta.max}"
+                               value="${meta.default}" step="1">`;
+                } else {
+                    // Range slider (default)
+                    col.innerHTML = `
+                        <label class="form-label">
+                            ${meta.label} (${meta.unit})
+                        </label>
+                        <div class="input-group">
+                            <input type="range" class="form-range"
+                                   id="${name}" name="${name}"
+                                   min="${meta.min}" max="${meta.max}"
+                                   value="${meta.default}" step="1"
+                                   oninput="document.getElementById('${name}_value').textContent = this.value">
+                            <span class="input-group-text weather-value" id="${name}_value">
+                                ${meta.default}
+                            </span>
+                        </div>`;
+                }
+
+                container.appendChild(col);
+            }
+        }
+
+        function onCropChange() {
+            const crop = document.getElementById('crop').value;
+            buildFeatureInputs(crop);
+        }
+
+        function getFormData() {
+            const crop = document.getElementById('crop').value;
+            const config = modelConfig[crop];
+            if (!config) return {};
+
+            const data = {
+                crop: crop,
+                region: document.getElementById('region').value
+            };
+
+            for (const [name, meta] of Object.entries(config.features)) {
+                const el = document.getElementById(name);
+                if (!el) continue;
+
+                if (meta.input_type === 'toggle') {
+                    data[name] = el.checked ? 1 : 0;
+                } else {
+                    data[name] = parseFloat(el.value);
+                }
+            }
+
+            return data;
         }
 
         document.getElementById('predictionForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            const formData = {
-                crop: document.getElementById('crop').value,
-                region: document.getElementById('region').value,
-                summer_rain: document.getElementById('Summer_Rain').value,
-                summer_sun: document.getElementById('Summer_Sun').value,
-                winter_frost: document.getElementById('Winter_Frost').value,
-                spring_rain: document.getElementById('Spring_Rain').value,
-                spring_frost: document.getElementById('Spring_Frost').value,
-                summer_tmax: document.getElementById('Summer_Tmax').value,
-                grain_filling_rain: document.getElementById('Grain_Filling_Rain').value,
-                grain_filling_sun: document.getElementById('Grain_Filling_Sun').value
-            };
+            const formData = getFormData();
 
             try {
                 const response = await fetch('/predict', {
@@ -218,7 +282,6 @@
                                            <small>${condition.description}</small>`;
                             extremeList.appendChild(li);
 
-                            // Add recommendation
                             if (condition.recommendation) {
                                 const recLi = document.createElement('li');
                                 recLi.className = 'list-group-item';
@@ -237,6 +300,11 @@
             } catch (error) {
                 alert('Request failed: ' + error.message);
             }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            buildFeatureInputs('{{ initial_crop }}');
         });
     </script>
 </body>

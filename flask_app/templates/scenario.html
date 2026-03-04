@@ -7,6 +7,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .model-badge { font-size: 0.8rem; }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-success">
@@ -34,11 +37,12 @@
         <div class="row mt-4">
             <div class="col-lg-4">
                 <div class="card">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Select Crop</h5>
+                        <span class="badge bg-secondary model-badge" id="scenarioModelBadge"></span>
                     </div>
                     <div class="card-body">
-                        <select class="form-select mb-3" id="scenarioCrop" onchange="markChanges()">
+                        <select class="form-select mb-3" id="scenarioCrop" onchange="onScenarioCropChange()">
                             {% for crop in crops %}
                             <option value="{{ crop }}">{{ crop.replace('_', ' ') }}</option>
                             {% endfor %}
@@ -97,26 +101,9 @@
                         </span>
                     </div>
                     <div class="card-body">
-                        {% for feature, config in weather_ranges.items() %}
-                        <div class="mb-4">
-                            <label class="form-label d-flex justify-content-between">
-                                <span>{{ feature.replace('_', ' ') }}</span>
-                                <span class="text-muted" id="scenario_{{ feature }}_value">
-                                    {{ config.default }} {{ config.unit }}
-                                </span>
-                            </label>
-                            <input type="range" class="form-range scenario-slider"
-                                   id="scenario_{{ feature }}"
-                                   min="{{ config.min }}" max="{{ config.max }}"
-                                   value="{{ config.default }}"
-                                   data-unit="{{ config.unit }}"
-                                   oninput="updateSliderValue('{{ feature }}'); markChanges();">
-                            <div class="d-flex justify-content-between">
-                                <small class="text-muted">{{ config.min }}</small>
-                                <small class="text-muted">{{ config.max }}</small>
-                            </div>
+                        <div id="scenarioSlidersContainer">
+                            <!-- Dynamically built by JavaScript -->
                         </div>
-                        {% endfor %}
 
                         <div class="d-grid gap-2 mt-4">
                             <button type="button" class="btn btn-secondary btn-lg" id="applyBtn" onclick="applyChanges()">
@@ -151,26 +138,39 @@
         let scenarioChart;
         let hasUnsavedChanges = false;
 
-        const scenarios = {
+        const modelConfig = {{ model_config | tojson }};
+
+        // Preset scenario values for each feature (set defaults for features the crop uses)
+        const scenarioPresets = {
             normal: {
-                Summer_Rain: 200, Summer_Sun: 550, Winter_Frost: 25, Spring_Rain: 175,
-                Spring_Frost: 8, Summer_Tmax: 21, Grain_Filling_Rain: 150, Grain_Filling_Sun: 350
+                Winter_Sun: 155, Summer_Sun: 480, Extreme_Summer_Rain: 0, Grain_Filling_Rain: 200,
+                Spring_Tmax: 12, Planting_Rain: 360, Winter_Frost: 28,
+                Spring_Rain: 240, Rain_Deviation_from_Optimal: 100, Flowering_Sun: 360,
+                Summer_Tmin: 11, Area_hectares: null  // null = use crop default
             },
             wet_summer: {
-                Summer_Rain: 350, Summer_Sun: 420, Winter_Frost: 20, Spring_Rain: 220,
-                Spring_Frost: 6, Summer_Tmax: 18, Grain_Filling_Rain: 250, Grain_Filling_Sun: 280
+                Winter_Sun: 140, Summer_Sun: 380, Extreme_Summer_Rain: 1, Grain_Filling_Rain: 310,
+                Spring_Tmax: 11, Planting_Rain: 480, Winter_Frost: 25,
+                Spring_Rain: 350, Rain_Deviation_from_Optimal: 200, Flowering_Sun: 300,
+                Summer_Tmin: 10, Area_hectares: null
             },
             cold_winter: {
-                Summer_Rain: 180, Summer_Sun: 520, Winter_Frost: 48, Spring_Rain: 160,
-                Spring_Frost: 14, Summer_Tmax: 20, Grain_Filling_Rain: 140, Grain_Filling_Sun: 360
+                Winter_Sun: 130, Summer_Sun: 470, Extreme_Summer_Rain: 0, Grain_Filling_Rain: 190,
+                Spring_Tmax: 10, Planting_Rain: 350, Winter_Frost: 55,
+                Spring_Rain: 220, Rain_Deviation_from_Optimal: 80, Flowering_Sun: 350,
+                Summer_Tmin: 10, Area_hectares: null
             },
             drought: {
-                Summer_Rain: 110, Summer_Sun: 680, Winter_Frost: 22, Spring_Rain: 100,
-                Spring_Frost: 5, Summer_Tmax: 25, Grain_Filling_Rain: 60, Grain_Filling_Sun: 450
+                Winter_Sun: 200, Summer_Sun: 640, Extreme_Summer_Rain: 0, Grain_Filling_Rain: 80,
+                Spring_Tmax: 14, Planting_Rain: 200, Winter_Frost: 20,
+                Spring_Rain: 100, Rain_Deviation_from_Optimal: 220, Flowering_Sun: 460,
+                Summer_Tmin: 12, Area_hectares: null
             },
             ideal: {
-                Summer_Rain: 180, Summer_Sun: 620, Winter_Frost: 18, Spring_Rain: 160,
-                Spring_Frost: 4, Summer_Tmax: 20, Grain_Filling_Rain: 120, Grain_Filling_Sun: 400
+                Winter_Sun: 180, Summer_Sun: 580, Extreme_Summer_Rain: 0, Grain_Filling_Rain: 160,
+                Spring_Tmax: 13, Planting_Rain: 320, Winter_Frost: 18,
+                Spring_Rain: 200, Rain_Deviation_from_Optimal: 30, Flowering_Sun: 420,
+                Summer_Tmin: 11, Area_hectares: null
             }
         };
 
@@ -178,11 +178,74 @@
             'Wheat': 8.0, 'Winter_Barley': 6.5, 'Spring_Barley': 5.5, 'Oats': 5.8, 'OSR': 3.2
         };
 
+        function buildScenarioSliders(crop) {
+            const config = modelConfig[crop];
+            if (!config) return;
+
+            const container = document.getElementById('scenarioSlidersContainer');
+            container.innerHTML = '';
+
+            // Update model badge
+            document.getElementById('scenarioModelBadge').textContent = 'Model: ' + config.model_type;
+
+            for (const [name, meta] of Object.entries(config.features)) {
+                const div = document.createElement('div');
+                div.className = 'mb-4';
+
+                if (meta.input_type === 'toggle') {
+                    div.innerHTML = `
+                        <label class="form-label d-flex justify-content-between">
+                            <span>${meta.label}</span>
+                            <span class="text-muted" id="scenario_${name}_value">
+                                ${meta.default === 1 ? 'Yes' : 'No'}
+                            </span>
+                        </label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   id="scenario_${name}"
+                                   ${meta.default === 1 ? 'checked' : ''}
+                                   onchange="document.getElementById('scenario_${name}_value').textContent = this.checked ? 'Yes' : 'No'; markChanges();">
+                        </div>`;
+                } else if (meta.input_type === 'number') {
+                    div.innerHTML = `
+                        <label class="form-label d-flex justify-content-between">
+                            <span>${meta.label}</span>
+                            <span class="text-muted">${meta.unit}</span>
+                        </label>
+                        <input type="number" class="form-control"
+                               id="scenario_${name}"
+                               min="${meta.min}" max="${meta.max}"
+                               value="${meta.default}" step="1"
+                               oninput="markChanges()">`;
+                } else {
+                    div.innerHTML = `
+                        <label class="form-label d-flex justify-content-between">
+                            <span>${meta.label}</span>
+                            <span class="text-muted" id="scenario_${name}_value">
+                                ${meta.default} ${meta.unit}
+                            </span>
+                        </label>
+                        <input type="range" class="form-range scenario-slider"
+                               id="scenario_${name}"
+                               min="${meta.min}" max="${meta.max}"
+                               value="${meta.default}" step="1"
+                               data-unit="${meta.unit}"
+                               oninput="updateSliderValue('${name}'); markChanges();">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">${meta.min}</small>
+                            <small class="text-muted">${meta.max}</small>
+                        </div>`;
+                }
+
+                container.appendChild(div);
+            }
+        }
+
         function updateSliderValue(feature) {
             const slider = document.getElementById('scenario_' + feature);
             const display = document.getElementById('scenario_' + feature + '_value');
             if (slider && display) {
-                display.textContent = slider.value + ' ' + slider.dataset.unit;
+                display.textContent = slider.value + ' ' + (slider.dataset.unit || '');
             }
         }
 
@@ -196,52 +259,74 @@
             document.getElementById('changesIndicator').style.display = 'none';
         }
 
-        function setScenario(scenarioName) {
-            const scenario = scenarios[scenarioName];
-
-            for (const [feature, value] of Object.entries(scenario)) {
-                const slider = document.getElementById('scenario_' + feature);
-                if (slider) {
-                    slider.value = value;
-                    updateSliderValue(feature);
-                }
-            }
-
-            // Automatically apply when preset is selected
+        function onScenarioCropChange() {
+            const crop = document.getElementById('scenarioCrop').value;
+            buildScenarioSliders(crop);
+            // Auto-apply with defaults
             applyChanges();
         }
 
-        function getWeatherValues() {
-            const features = [
-                'Summer_Rain', 'Summer_Sun', 'Winter_Frost', 'Spring_Rain',
-                'Spring_Frost', 'Summer_Tmax', 'Grain_Filling_Rain', 'Grain_Filling_Sun'
-            ];
+        function setScenario(scenarioName) {
+            const crop = document.getElementById('scenarioCrop').value;
+            const config = modelConfig[crop];
+            if (!config) return;
 
-            const values = {};
-            for (const feature of features) {
-                const slider = document.getElementById('scenario_' + feature);
-                if (slider) {
-                    values[feature.toLowerCase()] = parseFloat(slider.value);
+            const preset = scenarioPresets[scenarioName];
+
+            for (const [name, meta] of Object.entries(config.features)) {
+                const el = document.getElementById('scenario_' + name);
+                if (!el) continue;
+
+                const presetVal = preset[name];
+
+                if (meta.input_type === 'toggle') {
+                    if (presetVal !== null && presetVal !== undefined) {
+                        el.checked = presetVal === 1;
+                        const label = document.getElementById('scenario_' + name + '_value');
+                        if (label) label.textContent = el.checked ? 'Yes' : 'No';
+                    }
+                } else if (presetVal !== null && presetVal !== undefined) {
+                    // Clamp to slider range
+                    const val = Math.max(meta.min, Math.min(meta.max, presetVal));
+                    el.value = val;
+                    if (meta.input_type === 'range') {
+                        updateSliderValue(name);
+                    }
+                }
+                // If presetVal is null, keep the default from config
+            }
+
+            applyChanges();
+        }
+
+        function getScenarioValues() {
+            const crop = document.getElementById('scenarioCrop').value;
+            const config = modelConfig[crop];
+            if (!config) return {};
+
+            const data = { crop: crop, region: 'England' };
+
+            for (const [name, meta] of Object.entries(config.features)) {
+                const el = document.getElementById('scenario_' + name);
+                if (!el) continue;
+
+                if (meta.input_type === 'toggle') {
+                    data[name] = el.checked ? 1 : 0;
+                } else {
+                    data[name] = parseFloat(el.value);
                 }
             }
-            return values;
+
+            return data;
         }
 
         async function applyChanges() {
-            const crop = document.getElementById('scenarioCrop').value;
             const applyBtn = document.getElementById('applyBtn');
-
-            // Show loading state
             applyBtn.disabled = true;
             applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Calculating...';
 
-            const weatherValues = getWeatherValues();
-
-            const formData = {
-                crop: crop,
-                region: 'England',
-                ...weatherValues
-            };
+            const formData = getScenarioValues();
+            const crop = formData.crop;
 
             try {
                 const response = await fetch('/predict', {
@@ -269,7 +354,7 @@
                         comparison.innerHTML = `<span class="text-danger">${diff} vs historical average</span>`;
                     }
 
-                    // Display recommendations
+                    // Recommendations
                     const recommendationsCard = document.getElementById('scenarioRecommendationsCard');
                     const recommendationsList = document.getElementById('scenarioRecommendationsList');
                     recommendationsList.innerHTML = '';
@@ -298,7 +383,6 @@
                 console.error('Prediction failed:', error);
                 alert('Failed to calculate prediction: ' + error.message);
             } finally {
-                // Reset button
                 applyBtn.disabled = false;
                 applyBtn.innerHTML = 'Apply Changes';
             }
@@ -347,6 +431,7 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            buildScenarioSliders('Wheat');
             setScenario('normal');
         });
     </script>
