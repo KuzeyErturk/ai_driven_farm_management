@@ -29,16 +29,22 @@
 
 **Keywords:** Agro-climate zones, northward migration, growing season, temperature extremes, Europe
 
-**Summary:** Derives 8 main agro-climatic zones across Europe using statistical cluster analysis. Finds that Eastern European zones have migrated northward ~100 km per decade, and future migration may double that rate. Mediterranean regions risk losing crop suitability while northern Europe gains capacity. Benefits from longer growing seasons are "often outbalanced by the risk of late frost and summer heat waves."
+**Summary:** Derives 8 main agro-climatic zones across Europe using K-means cluster analysis on two agro-meteorological indicators: active temperature sum (ATS) and thermal growing season length (GSL). Identifies 8 zones: Boreal North, Boreal South, Nemoral, Continental, Pannonian, Northern Maritime, Southern Maritime, and Mediterranean. The UK falls primarily in the Northern Maritime zone. Comparing 1975-1995 to 1996-2016, Eastern European zones migrated northward up to 100 km/decade (nemoral zone most pronounced). Western Europe saw strong northward shift of maritime zones — northern maritime climate appeared in central-northern Germany, replacing continental climate; southern maritime expanded through much of France. Under 2°C warming (RCP8.5), migration velocities in Eastern Europe may double. Southern maritime climate is projected to prevail in central/northern France (replacing northern maritime), with growing season lengthening ~20 days and ATS increasing up to 700 degree-days.
 
-**Methodology:** Cluster analysis on two indicators: active temperature sum and thermal growing season length. Analysis of 1975-2016 observations and 5 high-resolution climate projections.
+**Methodology:** K-means clustering on gridded interannual averages of GSL and ATS from MARS-MCYFS database (1975-2016). Five EURO-CORDEX high-resolution regional climate models (RCP8.5) for projections to 2°C global warming. Winter wheat phenology simulated via WOFOST crop model. Four temperature-based extreme indicators: frost days (<0°C), tropical nights (>20°C consecutive), mild heat stress (>31°C for 2+ consecutive days), strong heat stress (>35°C for 3+ consecutive days).
 
 **Key Findings:**
-- Agro-climate zones migrating northward ~100 km/decade
-- Future rate may be double the historical
-- Northern Europe gains capacity but with increased frost/heat risk
+- 8 agro-climate zones identified; nemoral zone border shifted northward ~100 km/decade in Eastern Europe
+- Continental and Pannonian zones progressed northward at ~70 km/decade
+- Western Europe: northern maritime zone expanded into central-northern Germany (previously continental); southern maritime expanded across France
+- Under 2°C warming: eastern European migration velocities may reach 130-200 km/decade
+- Southern maritime projected to replace northern maritime in central/northern France — THIS MEANS France's current climate is migrating toward the UK
+- Frost-affected area decreased across Europe, but late spring frost risk unchanged (earlier growing season onset = more frost exposure)
+- Mild heat stress area doubled in Mediterranean and southern maritime zones during 1996-2016
+- Even southern boreal zone experienced heat stress events that were absent in 1975-1995
+- Shortening of grain filling period contributes to wheat yield stagnation (alongside direct heat stress)
 
-**Relevance to Our Work:** PROVIDES THE SCIENTIFIC BASIS for why cross-country pooling is justified. If zones are shifting northward, today's French/German weather-yield relationships ARE relevant to the UK's future. This is arguably the most important citation for justifying our approach.
+**Relevance to Our Work:** PROVIDES THE SCIENTIFIC BASIS for why cross-country pooling is justified. Specifically: (1) The northern maritime zone (UK's current zone) is being replaced by southern maritime conditions — France's current climate IS the UK's near-future climate. (2) Southern maritime climate projected to prevail in central/northern France under 2°C warming, meaning today's French weather-yield patterns preview tomorrow's UK conditions. (3) Their finding that late spring frost risk persists despite warming supports our inclusion of Spring_Frost and Winter_Frost features. (4) Their threshold-based extreme indicators (>31°C, >35°C) support our use of extreme temperature features. This is arguably the most important citation for justifying our approach.
 
 ---
 
@@ -50,17 +56,21 @@
 
 **Keywords:** Climate attribution, European agriculture, wheat, barley, yield stagnation, policy effects
 
-**Summary:** Investigates whether long-term climate changes have detectably impacted European crop yields. Finds that temperature and precipitation trends reduced continent-wide wheat yields by 2.5% and barley by 3.8%. Climate trends explain ~10% of yield stagnation; policy changes (CAP decoupling) explain more.
+**Summary:** First formal attribution of long-term yield trends to climate change in European agriculture. Uses a distinctive "fingerprint" approach: compares the spatial pattern of observed yield trends across 349 subnational regions (11 countries including UK) with the predicted pattern from climate-yield response functions. Key innovation: separates long-run (cross-sectional, including adaptation) and short-run (interannual, less adaptation) response functions to test for both climate impact detection and adaptation.
 
-**Methodology:** Two statistical tests based on spatial pattern analysis. Panel data 1989-2009 across European regions with controls for soil, altitude, irrigation, subsidies.
+**Methodology:** Panel data 1989-2009 across subnational regions in Belgium, Germany, Greece, Spain, France, Ireland, Italy, Luxembourg, Netherlands, Portugal, UK. Response functions estimated using detrended yield and weather data with controls for soil quality, altitude, irrigation, subsidies, and country fixed effects. Quadratic functions in growing-season temperature and rainfall. Bootstrap-t procedure (500 resamples, block-bootstrapped by country) for significance testing that accounts for uncertainty in response function parameters.
 
 **Key Findings:**
-- Climate impacts detectable but modest relative to policy effects
-- Mediterranean regions suffered most (5%+ declines)
-- Northern regions modestly benefited from increased rainfall
-- ~10% of wheat/barley yield stagnation attributed to climate
+- Climate fingerprint statistically detectable for ALL four crops (wheat, barley, maize, sugar beet) at 5% level
+- Wheat: β₁ = 0.41 (p < 0.002); Barley: β₁ = 0.50 (p = 0.012); Maize: β₁ = 1.39 (p = 0.002); Sugar beet: β₁ = 0.82 (p = 0.02)
+- Production-weighted impacts: wheat −2.5%, barley −3.8%, maize +0.3%, sugar beet +0.2%
+- In absence of warming since 1989, wheat yields would be 3.5% higher, barley 3.8% higher
+- Italy hardest hit (10%+ losses from warming + drying)
+- Climate trends explain ~10% of wheat/barley yield stagnation; CAP subsidy decoupling (1993 and 2004 reforms) explains more
+- If yields had continued growing at pre-1995 rates, wheat and barley yields would be 30% and 37% higher today
+- Test for adaptation (test 2) has very low statistical power — "null results showing no evidence for adaptation should be interpreted with caution"
 
-**Relevance to Our Work:** Establishes that climate signals ARE detectable in European crop yields, supporting our weather-based models. The 10% figure provides context — our R² values of 0.25-0.54 capture more than just climate trends (also inter-annual weather variability).
+**Relevance to Our Work:** (1) Establishes that climate signals ARE detectable in European crop yields using the same type of subnational data we use. (2) The 10% figure provides context — our R² values of 0.25-0.54 capture more than just long-term climate trends (also inter-annual weather variability, which is our focus). (3) Their inclusion of UK data (alongside France, Germany) shows cross-country analysis of yield-climate relationships is methodologically standard. (4) The low power for detecting adaptation warns us that our negative cross-country transfer results don't necessarily mean adaptation doesn't matter. (5) Their finding that policy (CAP reforms) dominates climate in explaining yield stagnation supports our use of Area_hectares as a feature (proxy for policy/economic effects).
 
 ---
 
@@ -94,17 +104,23 @@
 
 **Keywords:** Machine learning, crop yield forecasting, Europe, regional prediction, WOFOST, subnational
 
-**Summary:** Evaluates ML for crop yield prediction at subnational level across 35 case studies in 9 European countries and 6 crops. Uses WOFOST crop model outputs + weather + remote sensing + soil. ML outperforms linear trend baselines (p < 3e-7). Captures spatial patterns well for average years but not extremes.
+**Summary:** Proposes and evaluates a generic ML workflow for regional crop yield forecasting across 35 case studies (9 countries: BG, DE, ES, FR, HU, IT, NL, PL, RO; 6 crops: soft wheat, spring barley, sunflower, grain maize, sugar beets, potatoes). Models built per crop-country combination by pooling all regions within a country. Data from MCYFS (1999-2018). ML outperforms linear trend baselines significantly (Wilcoxon p = 3e-7) and performs comparably to the EU's operational MCYFS forecasting system at 60 days before harvest (Wilcoxon p = 0.95, no significant difference). However, ML predictions are conservative — staying close to trend means and struggling with extreme years.
 
-**Methodology:** NUTS-2/3 level data. Features from crop simulation, weather, remote sensing, soil. 5-fold sliding temporal validation.
+**Methodology:** Features from WOFOST crop model outputs, weather observations, remote sensing (NDVI, fAPAR), soil water holding capacity, elevation, slope, crop area, irrigated crop area, average field sizes. Dynamic crop calendars (per-region, per-year). Four ML algorithms compared: Ridge Regression, KNN, SVR, Gradient Boosted Decision Trees (GBDT). 5-fold sliding temporal validation for feature selection and hyperparameter tuning; per-test-year model refitting using all prior data. Bayesian optimization for hyperparameters (replacing grid search in baseline). Forecasts at 120, 90, 60, 30 days before harvest and end-of-season.
 
 **Key Findings:**
-- Regional ML models had lower error than linear trends
-- Extreme years poorly predicted
-- Combining process-based model features with ML improves forecasting
-- Separate models built per country-crop combination
+- Optimized ML: median regional NRMSE = 16.57% (vs 17.27% baseline, 20.35% trend) at 60 days before harvest
+- ML significantly better than trend for ALL 35 cases at 120 days before harvest
+- At national level: ML median NRMSE 8.41% vs MCYFS 8.81% (60 days early) — comparable performance
+- At end-of-season: MCYFS significantly better than ML (6.74% vs 7.49%) because analysts update forecasts with expert knowledge and news reports
+- ML captured regional differences for average harvests (~71% regions matched for potatoes 2013) but not extremes (grain maize 2015: only 52% matched; French wheat 2016: 53% matched)
+- ML prediction residuals had lower variance and fewer outliers than trend residuals
+- Z-score features for weather extremes "not always effective"
+- Spring barley (FR) and sunflower (FR) had suspicious near-identical reported yields — data quality concerns
+- Overfitting detected in cases where baseline outperformed optimized model (validation vs test distribution mismatch)
+- "We pooled data from possibly very different regions to have a large enough data size for machine learning" — explicit acknowledgment of data size constraint
 
-**Relevance to Our Work:** Key comparison paper. They build SEPARATE models per country; we build a SINGLE POOLED model across countries. They use crop model outputs as features; we use raw weather. Showing that our simpler approach (weather-only, pooled) achieves competitive results would be a strong finding.
+**Relevance to Our Work:** (1) KEY COMPARISON: They build SEPARATE models per country by pooling within-country regions; we build a SINGLE POOLED model across countries. Their within-country pooling rationale (data size for ML) is exactly our cross-country rationale. (2) Their use of Ridge, SVR, GBDT mirrors our algorithm choices (RF, Ridge, SVR). (3) Their finding that ML struggles with extremes matches our experience. (4) Their use of WOFOST crop model features + remote sensing achieves only marginally better NRMSE than trend — our simpler weather-only approach is reasonable. (5) Their 16-17% regional NRMSE benchmark contextualizes our performance. (6) Their French data quality concerns are relevant if we use French data for cross-country pooling. (7) Their explicit acknowledgment that "different regions" can be pooled when data is scarce directly supports our cross-country extension of the same principle.
 
 ---
 
@@ -160,17 +176,25 @@
 
 **Keywords:** Wheat yield shocks, machine learning, SHAP, climate drivers, heat stress, Europe
 
-**Summary:** Applies ML + SHAP game theory to attribute European wheat yield shocks at subnational level. Finds a paradigm shift: water limitation was the dominant driver historically (32% of shocks), but extreme warming surpassed it in 2000-2018. By 2070-2099, 46-54% of areas will be heat-driven.
+**Summary:** Builds a data-driven attribution framework using Random Forest + SHAP (Shapley additive explanations) to identify primary climate drivers of European wheat yield shocks across 1,435 subnational administrative units in 17 countries (1980-2018). Yield shocks defined as lowest 10th percentile of relative yield anomalies (detrended via LOESS). Europe divided into 4 regions (North, South, East, West) with separate RF models per region. Five primary climate driver categories: extreme warming, high water demand, excessive water supply, low water supply, and cold stress. 20 climate predictors (5 variable types × 4 growth stages: autumn, winter, vegetative period, reproductive period). Also evaluates 8 process-based crop models against the data-driven attribution.
 
-**Methodology:** ML attribution with SHAP. Daily weather at 25km. Four growing stages analyzed separately. Six crop models for future projections.
+**Methodology:** Random Forest classification (yield shock = binary variable). ntree = 1000, mtry tuned via 5-fold CV (11-14 depending on region). AUC > 0.85 for all regions (North highest at 0.95). SHAP values used to decompose predicted shock probability into individual predictor contributions. Climate data from JRC MARS database at 25km resolution. Daily variables: Tmin, Tmax, precipitation, wind speed, global radiation, vapour pressure deficit, potential evapotranspiration. Five climate variable types per growth stage: fraction of warm days (>30°C or >90th percentile), mean precipitation, fraction of rainy days, PET, fraction of cold days (<0°C).
 
 **Key Findings:**
-- Historical: water limitation dominant (32% of yield shocks)
-- Recent (2000-2018): extreme warming became dominant
-- Paradigm shift projected to accelerate under RCP4.5/8.5
-- 2003 was the year with highest yield shock area
+- 2003 had highest yield shock area across Europe (compound heat + drought)
+- Yield shock frequency higher in southern, warmer areas (Romania, Spain, southern France)
+- North and East Europe show increasing trend in area fractions of yield shock
+- Overall 1980-2018: low water supply was most pervasive primary driver (32% of shocks), followed by extreme warming, high water demand, excessive water supply
+- Regional variation: South/East Europe dominated by low water supply; North/West Europe by excessive water supply
+- PARADIGM SHIFT: from 1980-1999 to 2000-2018, dominant driver shifted from low water supply to extreme warming for whole Europe
+- Reproductive period is the critical stage for extreme warming-driven shocks; vegetative period is critical for water-driven shocks
+- Partial dependence plots: same predictor can have quite different effects across regions — "spatially varying sensitivities justify our partitioning of Europe into several regions"
+- Crop models captured low water supply impacts well (>60% agreement with 3+ of 6 models) but FAILED for excessive water supply and autumn/winter stresses
+- Future projections (2070-2099): extreme warming becomes dominant driver — 46% (RCP4.5) to 54% (RCP8.5) of areas heat-driven
+- Crop model agreement DECREASES for future climate — existing models may be inadequate for forecasting future yield shocks
+- Sensitivity analysis: results robust to alternative detrending (Savitzky-Golay) and ±14 day phenology shifts
 
-**Relevance to Our Work:** Supports including temperature variables (especially extreme heat) in our models. Their stage-specific analysis suggests our aggregated seasonal features may miss within-season timing effects — a potential improvement direction.
+**Relevance to Our Work:** (1) Strongly supports including temperature variables (especially extreme heat) in our models — warming has already surpassed water limitation as the primary yield shock driver in 2000-2018. (2) Their regional RF approach (separate models for North/West/East/South) parallels our UK-only vs cross-country comparison. (3) The finding that the same predictor has different effects across regions directly supports building region-specific models rather than one-size-fits-all. (4) Their SHAP-based attribution methodology could be applied to our models for interpretability. (5) Crop models failing on excess water and winter stresses suggests our empirical weather-based approach may capture relationships that process-based models miss. (6) The stage-specific analysis (autumn, winter, vegetative, reproductive) suggests our aggregated seasonal features may miss within-season timing effects — a potential improvement direction. (7) Their use of the JRC MARS database and LOESS detrending aligns with standard practices.
 
 ---
 
@@ -202,19 +226,26 @@
 **DOI:** 10.1088/1748-9326/ad24d0
 **URL:** https://iopscience.iop.org/article/10.1088/1748-9326/ad24d0
 
-**Keywords:** Heat stress, drought, wheat, rye, Germany, site conditions, phenological phases
+**Keywords:** Heat stress, drought, wheat, rye, Germany, site conditions, phenological phases, G×E×M
 
-**Summary:** Assesses genotype-environment-management interactions with weather in German wheat and rye variety trials (1993-2021). Combined heat-drought stress most damaging during reproductive phase. Poor soils amplify losses 2-3x. Modern varieties show higher absolute stress losses despite higher baselines.
+**Summary:** First comprehensive analysis of site-specific combined heat and drought stress effects on wheat and rye across all German cereal growing regions using 28,187 wheat trials (403 varieties, 89 sites) and 10,290 rye trials (93 varieties, 85 sites) from pre-registration variety trials (1993-2021). Uses mixed linear models with G×E×M (genotype × environment × management) specific covariates. Combined heat-drought weather indices (WIs) defined as days exceeding temperature thresholds (27°C, 29°C, 31°C) AND soil moisture below thresholds (50%, 30%, 10% of plant available water capacity). Phenological stages derived from PHASE model + variety trial data + growing-degree-day calculations for missing stages.
 
-**Methodology:** 28,187 wheat trials across 89 German sites. Mixed linear models with weather indices. Phenological staging via PHASE model.
+**Methodology:** Linear mixed models (equation 7 in paper) with genotype, site, year, trial series as factors. Fixed regression coefficients for: (1) environmental covariates (soil quality, precipitation, soil type, SQR), (2) management covariates (N-fertilization, crop protection), (3) combined heat-drought WIs per phenological period. Variance reduction method for covariate selection (forward selection, threshold ≥0.5%). Six stage-to-stage periods analyzed: stem elongation→booting, booting→heading, heading→anthesis, anthesis→milk ripening, milk ripening→dough ripening, dough ripening→yellow ripening. Plus three cross-stage periods. Site clusters: precipitation (>/<650mm), soil quality (>/<50 points), soil type (loam/sand), SQR (>/<60 points).
 
 **Key Findings:**
-- Reproductive phase (heading to milk ripening) is most vulnerable
-- Sandy, low-precipitation sites suffer 2-3x more yield loss
-- Combined heat+drought more damaging than either alone
-- Modern varieties more stress-sensitive in absolute terms
+- Combined heat-drought stress increasing significantly from 1993-2021, especially post-heading periods
+- Phenological acceleration: stem elongation and yellow ripening shifted 8-10 days earlier; heading changed little → grain-filling period SHORTENING over time
+- Strongest explanatory power for combined WIs during heading→dough ripening (HDR) period for both crops
+- Heading→anthesis is the single most significant stage-to-stage period for wheat yield effects
+- Site-specific effects are DRAMATIC: poor sites (low soil quality, sandy soil, <650mm precipitation) suffer 2-3× more yield loss than good sites across all stress intensities
+- Drought is the driving force: yield losses on poor sites increase more with drought intensity than with heat intensity
+- Rye reaches anthesis 20 days earlier than wheat, experiencing less pre-anthesis stress
+- Modern varieties: significantly higher absolute AND relative stress losses in wheat; higher absolute but NOT relative losses in rye
+- Average wheat yield: 9.8 t/ha; rye: 8.8 t/ha (German variety trial conditions — much higher than UK national averages)
+- Breeding progress outweighs negative annual weather trend, but breeding has NOT improved stress tolerance
+- Site conditions outweigh genetic advantages: rye's theoretical stress tolerance is negated by being grown on marginal sites
 
-**Relevance to Our Work:** Explains why German models need different features than UK. Site/soil interactions with weather suggest our weather-only approach may underperform where soil variation is important. Their phenological timing finding supports our Grain_Filling_Rain and Grain_Filling_Sun features.
+**Relevance to Our Work:** (1) Explains why German yield-weather relationships may not transfer directly to UK — German wheat trials average 9.8 t/ha vs UK ~7-8 t/ha due to different site conditions, varieties, and management. (2) Their finding that site/soil interactions with weather cause 2-3× variation in stress losses means our weather-only approach (without soil data) will have limited explanatory power for German data. (3) The phenological timing finding STRONGLY supports our Grain_Filling_Rain and Grain_Filling_Sun features — the heading→dough ripening period is where weather effects concentrate. (4) The grain-filling period is shortening over time — a confounding trend in our data. (5) Their threshold-based WIs (>27°C, >29°C, >31°C) suggest our Summer_Tmax feature may be too aggregated — threshold exceedance counts could be more informative. (6) The finding that combined heat+drought is worse than either alone suggests interaction features could improve our models.
 
 ---
 
@@ -224,16 +255,29 @@
 **DOI:** 10.1038/s41558-025-02392-0
 **URL:** https://www.nature.com/articles/s41558-025-02392-0
 
-**Keywords:** Space-for-time substitution, climate analogues, ecoclimate sensitivity, acclimation
+**Keywords:** Space-for-time substitution, climate analogues, ecoclimate sensitivity, acclimation, forecasting
 
-**Summary:** Warns that space-for-time substitution can be "misleading not just in the magnitude but in the direction of effects." Case studies from tree growth, coral reefs, and soil microbiomes show that spatial climate gradients can predict responses incorrectly vs actual temporal responses. Acclimation processes cause sensitivities to differ across timescales.
+**Summary:** A Comment piece in Nature Climate Change warning that space-for-time substitution (SFTS) — using patterns observed across spatial climate gradients to predict impacts of climate change — can be "misleading not just in the magnitude but in the direction of effects." Central example: *Pinus ponderosa* trees grow faster at warmer locations (spatial pattern) but slower in warmer-than-average years (temporal pattern). So SFTS forecasting predicts trees should BENEFIT from warming, whereas temporal data shows they SUFFER. This sign reversal has been found across multiple systems: other tree species, grassland productivity, pathogen-driven forest mortality, herbaceous plant demography, bird abundance.
+
+**Two key reasons SFTS fails:**
+1. **Causality assumption violation:** SFTS assumes climate directly causes the observed spatial pattern. But spatial correlations may reflect confounding factors (soil, management, genetics) that co-vary with climate. Machine learning and AI "excel at matching patterns" but this makes the causality problem worse — an era-specific warning.
+2. **Lagging ecological processes:** Organisms, communities, and ecosystems adjust to climate via processes operating on different timescales — fast (physiological acclimation, plasticity) to slow (evolution, dispersal, species colonization). Transient dynamics during the lag period can produce responses opposite to equilibrium predictions.
+
+**Recommendations:**
+- Qualitatively assess whether SFTS assumptions are likely met for the study system
+- SFTS more reliable when: strong causal climate→response link exists, evolution/dispersal are rapid, forecast horizon is long relative to lagging processes
+- Compare spatial vs temporal climate sensitivities — if consistent, uncertainty is lower
+- Use multiple validation approaches beyond cross-validation (hindcasting, near-term forecasting, out-of-sample validation)
+- Develop forecasting approaches using causal inference or process-based models
 
 **Key Findings:**
-- Spatial patterns may fundamentally differ from temporal responses
+- Spatial patterns may fundamentally differ from temporal responses — sign can be REVERSED
 - Acclimation at different timescales causes sensitivity shifts
 - Direction of effects can be wrong, not just magnitude
+- Abundant spatial data + flexible ML "excel at matching patterns" but heighten the causality risk
+- "Transient dynamics can lead to permanent or quasi-permanent undesirable outcomes"
 
-**Relevance to Our Work:** CRITICAL LIMITATION TO ACKNOWLEDGE. Our cross-country pooling assumes French weather-yield relationships transfer to UK conditions — this paper warns that may not hold due to adaptation, different cultivars, soil, and farming practices. We should discuss this explicitly as a limitation and note that our negative transfer test results (all R² negative) partially validate this concern.
+**Relevance to Our Work:** CRITICAL LIMITATION TO ACKNOWLEDGE. (1) Our cross-country pooling is fundamentally an SFTS approach — we assume spatial weather-yield relationships (France/Germany) transfer to temporal changes (UK's future climate). Evans et al. warn this can fail due to different cultivars, soils, farming practices, and adaptation timescales between countries. (2) Our negative transfer test results (all cross-country R² negative) are CONSISTENT WITH their warning — spatial relationships don't transfer in our case. (3) Their warning about ML "excelling at matching patterns" without causality is directly relevant to our RF models. (4) However, our system differs from their ecological examples in important ways: agricultural crops are actively managed, breeding/adaptation is faster than for trees, and we use inter-annual variability (not just spatial gradients). (5) We should cite this explicitly as a limitation and frame our negative transfer results as partially validating Evans et al.'s concerns about SFTS in agricultural contexts.
 
 ---
 
@@ -245,17 +289,26 @@
 
 **Keywords:** Meta-analysis, crop yield, climate change, adaptation, food security, temperature response
 
-**Summary:** Synthesizes 1,700+ published crop yield simulations. Without adaptation, wheat, rice, and maize face aggregate losses at 2°C local warming. Crop-level adaptations increase simulated yields by 7-15%. Yield losses greater in the second half of the century. Tropical regions show strongest consensus on declines.
+**Summary:** Synthesizes 1,700+ published crop yield simulations (from 66 studies) into a unified dataset to evaluate impacts of climate change and adaptation on wheat, rice, and maize. Uses OLS with robust covariance matrix estimates (clustered by study). Separates analysis by temperate/tropical regions, C3/C4 metabolism, and presence/absence of adaptation. Adaptations studied are incremental, crop-level adjustments (planting date, fertilizer, irrigation, cultivar change) — not systemic or transformational changes.
 
-**Methodology:** Meta-analysis with OLS models. Three continuous variables (temperature, CO2, precipitation change) and three categorical (adaptation, temperate/tropical, C3/C4).
+**Methodology:** General linear model with 3 continuous variables (ΔT, ΔCO₂, ΔP) and 3 categorical variables (adaptation yes/no, temperate/tropical, C3/C4). n = 882 for the main model. 33 paired studies (with and without adaptation) for quantifying adaptation benefits. 500 bootstrap samples for confidence intervals. Temporal analysis using 20-year and 10-year bins.
 
-**Key Findings:**
-- ~5% yield decline per 1°C warming (without adaptation)
-- Adaptations add 7-15% yield benefit
-- Wheat and rice more adaptable than maize
-- Yield variability likely to increase
+**Key Findings (from full text):**
+- Temperature coefficient: −4.90% per °C (p < 0.001) — the strongest predictor
+- Precipitation: +0.53% per % change (p = 0.003)
+- CO₂: +0.06% per ppm (p = 0.002) — partial offset
+- Adaptation: +7.16% average benefit (p = 0.022)
+- Region (temperate vs tropical): not significant (p = 0.47)
+- C3 vs C4 metabolism: not significant (p = 0.99)
+- Adaptation benefits relatively consistent across temperature increases and rainfall changes (7-15% range)
+- Cultivar adjustment was the most effective adaptation, followed by irrigation
+- Maize: little evidence for adaptation potential, especially in tropics (counterintuitive — due to different modelling methods in adaptation vs non-adaptation studies)
+- Temporal consensus: yield decreases in 2nd half of century are stronger and more certain than 1st half
+- ALL positive yield changes in 2070s/2090s come from temperate regions — "strong consensus that yields of tropical crops will decrease"
+- Yield variability increases projected (CV increases of 50-300% in some studies)
+- Key limitations acknowledged: most studies don't simulate pests/weeds/diseases, many assume continued water availability, CO₂ fertilization effects uncertain
 
-**Relevance to Our Work:** Provides the global context. The 5% per °C benchmark helps interpret our cross-country yield differences (e.g., France is 5°C warmer in summer than UK but yields are only modestly different — suggesting current adaptation is effective).
+**Relevance to Our Work:** (1) The −4.9% per °C coefficient provides a benchmark for interpreting cross-country yield differences. France is ~3-5°C warmer in summer than Scotland — the Challinor coefficient would predict 15-25% lower yields, but French yields are actually HIGHER, showing adaptation + CO₂ + management effects dominate. (2) Their finding that cultivar adjustment is the most effective adaptation highlights why cross-country transfer (different cultivars) is problematic. (3) The increasing yield variability projection supports our interest in predicting extreme years. (4) Their meta-analysis approach (pooling diverse studies) is analogous to our data pooling approach. (5) The −4.9%/°C figure for temperature is consistent with Gammans et al.'s French findings and supports temperature being our most important predictor category.
 
 ---
 
@@ -267,12 +320,19 @@
 
 **Keywords:** Food insecurity, seasonal heat, growing season temperature, extreme events, adaptation
 
-**Summary:** Combines 1900-2006 observational climate data with 23 GCM projections. Over 90% probability that tropical/subtropical growing season temperatures will exceed all historical extremes by century's end. In temperate regions, the hottest seasons on record will become the norm. Uses historical heat events (e.g., 1972 USSR, 2003 Europe) as warnings.
+**Summary:** Combines 1900-2006 observational climate data with 23 GCM projections to demonstrate that future growing season temperatures will be unprecedented. Summer (JJA for Northern Hemisphere) defined as proxy for main growing season. Over 90% probability that tropical/subtropical seasonal temperatures will exceed ALL historical extremes by century's end. In temperate regions, the hottest seasons on record will become the median — not the extreme — by 2090.
+
+**Historical case studies (from full text):**
+- **2003 European heat wave:** ~52,000 deaths. France: mean summer temp 3.6°C (3.5σ) above long-term mean. Italy: maize yields dropped 36% from prior year. France: maize/fodder −30%, fruit −25%, wheat −21%. By end of century, 2003-like summers become the NORM for France.
+- **1972 USSR:** Peak temperatures >30°C during key wheat/coarse grain development stages caused 13% grain production decline. Contrary to popular narrative, drought was NOT the main factor — only 0.5σ below mean precipitation. The heat wave triggered Soviet intervention in international markets (unprecedented policy shift), wheat prices tripled ($60→$208/metric ton in 2 years). Demonstrates how regional crop failures cascade into global food security impacts.
+- **Crop yield losses:** Direct yield losses of 2.5-16% per 1°C increase in seasonal temperature for major grains (experimental and model-based estimates).
 
 **Key Findings:**
-- >90% chance tropical growing season temps exceed all historical extremes
-- Temperate record temperatures become future norm
-- 2003 European heat wave as warning case
-- Historical relationships may not hold under unprecedented conditions
+- >90% probability that by 2090, tropical/subtropical growing season temps exceed ALL 1900-2006 records
+- In temperate regions (including Europe), the hottest season on record becomes the future median
+- "The projected seasonal average temperature represents the median, not the tail, of the climate distribution"
+- Food deficits will be GLOBAL — "extremely difficult to balance food deficits in one part of the world with surpluses in another"
+- Major adaptation investments needed NOW: heat-tolerant varieties, irrigation systems, breeding programs
+- National and international agricultural investments have been "waning in recent decades"
 
-**Relevance to Our Work:** Foundational motivation for climate-crop research. Their point that unprecedented temperatures render historical relationships unreliable is a challenge for our statistical models — if future UK temps exceed training data, extrapolation becomes unreliable. This supports the argument for cross-country pooling (expands the range of conditions in training data).
+**Relevance to Our Work:** (1) Foundational motivation for climate-crop research — crop yields will face unprecedented heat stress. (2) Their key point that unprecedented temperatures render historical relationships unreliable is a fundamental challenge for our statistical models — if future UK temps exceed anything in our training data (2004-2024), our models cannot extrapolate reliably. (3) This DIRECTLY supports the argument for cross-country pooling: by including French/German data where current temperatures are higher, we expand the range of conditions in training data, making the model more robust to future UK warming. France's current summers approximate the UK's projected future. (4) The 2003 case study (France −21% wheat) and 1972 case study (USSR −13% grain) demonstrate the magnitude of yield shocks that our models should aim to predict. (5) Their 2.5-16% per °C loss range contextualizes Challinor et al.'s −4.9%/°C finding.
