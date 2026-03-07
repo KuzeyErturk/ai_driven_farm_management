@@ -96,14 +96,96 @@ Our pooled Ridge model (all 47 features + binary Is_France/Is_Germany indicators
 
 ---
 
+## RESULTS: Long-History Detrended Anomaly Transfer (Implemented)
+
+**File:** `src/france/long_history_transfer.py`
+
+### What was implemented
+
+1. **Extended E-OBS weather processing** to 1995-2018 for French regions (24 years vs original 13)
+2. **Extended Schauberger yields** loaded for the same period
+3. **Detrending**: Linear trend removal per (Region, Crop) to isolate weather-driven yield anomalies
+4. **Weather anomalisation**: Per-region z-score standardisation of weather features to remove climate baseline differences
+5. **Multiple transfer approaches** compared:
+   - [A] UK-only LOOCV Ridge (baseline)
+   - [B] Raw direct transfer (France → UK, no calibration)
+   - [C] Pooled anomaly (France + UK detrended, LOOCV)
+   - [D] Raw transfer with crop-specific features
+   - [E-G] **Rescaled transfer** (anomaly rescaling via LOOCV calibration)
+   - [H] Pooled anomaly with alpha tuning
+
+### Key Results
+
+#### Rescaled Direct Transfer — First Positive R² for All Crops
+
+The breakthrough: train weather→yield-anomaly model on France, predict UK anomalies,
+then apply a simple linear calibration (actual = a*predicted + b) estimated via LOOCV
+on UK data. Only 2 calibration parameters from UK, all weather response shapes from France.
+
+| Crop           | Raw Transfer | Rescaled Transfer | UK-only LOOCV | Pooled Anomaly |
+|----------------|-------------|-------------------|---------------|----------------|
+| Wheat          | -6.857      | **0.450**         | 0.284         | 0.696          |
+| Winter_Barley  | -16.164     | **0.602**         | 0.501         | 0.675          |
+| Spring_Barley  | -49.088     | **0.651**         | 0.408         | 0.764          |
+| Oats           | -22.305     | **0.304**         | -0.455        | 0.478          |
+| OSR            | -34.221     | **0.136**         | 0.285         | 0.585          |
+
+- Previous best direct transfer R² was **-3.026** (bias correction in domain_adaptation.py)
+- Rescaled transfer beats UK-only baseline for 3/5 crops (Wheat, Spring_Barley, Oats)
+- Linear calibration always outperforms simple variance rescaling
+
+#### Best Rescaled Configuration Per Crop
+
+| Crop           | R²    | Calibration | Alpha | Feature Set     |
+|----------------|-------|-------------|-------|-----------------|
+| Wheat          | 0.450 | linear      | 100.0 | all (47)        |
+| Winter_Barley  | 0.602 | linear      | 100.0 | crop_specific   |
+| Spring_Barley  | 0.651 | linear      | 0.1   | crop_specific   |
+| Oats           | 0.304 | linear      | 100.0 | all (47)        |
+| OSR            | 0.136 | linear      | 100.0 | all (47)        |
+
+#### Pooled Anomaly — Best Overall
+
+| Crop           | Pooled Anom | Tuned Pooled | Config                |
+|----------------|-------------|--------------|----------------------|
+| Wheat          | 0.696       | 0.696        | all features, α=1    |
+| Winter_Barley  | 0.675       | 0.675        | all features, α=1    |
+| Spring_Barley  | 0.635       | 0.764        | all features, α=100  |
+| Oats           | 0.405       | 0.478        | all features, α=10   |
+| OSR            | 0.585       | 0.585        | all features, α=1    |
+
+### Key Findings
+
+1. **Detrending + anomalisation is the key innovation** — removing yield technology trends
+   and converting weather to per-region z-scores makes cross-country data compatible.
+
+2. **Extended history (1995-2018) does NOT help** in the pooled setting — 2004-2016
+   performs slightly better for most crops. Non-stationarity of older weather-yield
+   relationships likely degrades performance.
+
+3. **Linear calibration rescues direct transfer** — the France model captures useful
+   directional weather-yield signals but with wrong scale/offset. A simple 2-parameter
+   linear calibration (estimated via LOOCV) corrects this.
+
+4. **Raw correlations are low (0.05-0.39)** but linear calibration still works — this
+   means the model captures relative ranking of anomalies even when absolute magnitudes
+   are wrong.
+
+5. **Pooled anomaly remains best overall** but rescaled transfer is the first viable
+   "pure transfer" approach — useful when target country has very limited yield data
+   (only need enough for 2-parameter calibration, not full model training).
+
+---
+
 ## Key Insight
 
 Simply adding more years of data from the same 3 countries will not solve the transfer problem. The issue is structural (cultivars, soils, management) not statistical (sample size). Solutions must either:
 - **(a)** Explicitly model country-specific effects separately from shared weather responses (mixed-effects models)
 - **(b)** Reduce the structural gap by using more climatically/agriculturally similar countries
 - **(c)** Align distributions before training (domain adaptation, bias correction)
+- **(d)** Detrend yields + anomalise weather, then rescale predictions (most effective approach found)
 
-Or ideally, a combination of all three.
+Or ideally, a combination of multiple approaches.
 
 ---
 
