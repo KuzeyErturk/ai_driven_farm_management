@@ -524,7 +524,97 @@ def loocv_coral(df, features):
 
 
 # ============================================================================
-# TRANSFER TEST: TRAIN ON POOLED, PREDICT UK
+# TRANSFER HELPERS
+# ============================================================================
+
+def _compute_climate_weights(df, features, target='UK'):
+    """Compute per-sample weights based on climate similarity to target country."""
+    # Use key climate variables for distance
+    climate_vars = [v for v in ['Summer_Tmax', 'Annual_Rain', 'Winter_Tmin', 'Spring_Rain']
+                    if v in features]
+    if not climate_vars:
+        climate_vars = features[:4]
+
+    target_data = df[df['Country'] == target]
+    target_mean = target_data[climate_vars].mean().values
+
+    # Per-country climate distance
+    countries = df['Country'].unique()
+    country_distances = {}
+    for c in countries:
+        if c == target:
+            continue
+        c_mean = df[df['Country'] == c][climate_vars].mean().values
+        # Euclidean distance on standardised climate vars
+        std = df[climate_vars].std().values
+        std[std < 0.001] = 1
+        country_distances[c] = np.sqrt(np.sum(((c_mean - target_mean) / std) ** 2))
+
+    # Convert to weights: w = exp(-d²/σ²), σ = median distance
+    if not country_distances:
+        return np.ones(len(df))
+    sigma = np.median(list(country_distances.values()))
+    if sigma < 0.01:
+        sigma = 1.0
+
+    weights = np.ones(len(df))
+    for i, row in df.iterrows():
+        c = row['Country']
+        if c == target:
+            weights[i] = 1.0
+        elif c in country_distances:
+            weights[i] = np.exp(-(country_distances[c] ** 2) / (sigma ** 2))
+
+    return weights
+
+
+def _select_transferable_features(df, features, min_countries=5):
+    """Select features with consistent yield correlation sign across countries."""
+    countries = df['Country'].unique()
+    selected = []
+
+    for f in features:
+        if df[f].std() < 0.001:
+            continue
+        signs = []
+        magnitudes = []
+        for c in countries:
+            sub = df[df['Country'] == c]
+            if len(sub) < 5:
+                continue
+            corr = sub[f].corr(sub['Yield_t_per_ha'])
+            if not np.isnan(corr):
+                signs.append(np.sign(corr))
+                magnitudes.append(abs(corr))
+
+        if len(signs) < min_countries:
+            continue
+
+        # Consistent sign across countries AND meaningful magnitude in ≥3
+        n_pos = sum(1 for s in signs if s > 0)
+        n_neg = sum(1 for s in signs if s < 0)
+        n_meaningful = sum(1 for m in magnitudes if m > 0.1)
+        if (n_pos >= min_countries or n_neg >= min_countries) and n_meaningful >= 3:
+            avg_mag = np.mean(magnitudes)
+            selected.append((f, avg_mag))
+
+    selected.sort(key=lambda x: x[1], reverse=True)
+    result = [f for f, _ in selected]
+
+    # Ensure at least 5 features
+    if len(result) < 5:
+        fallback = _select_top_features(df, features, n_top=10)
+        for f in fallback:
+            if f not in result:
+                result.append(f)
+            if len(result) >= 10:
+                break
+
+    return result
+
+
+# ============================================================================
+# TRANSFER TEST: TRAIN ON NON-UK, PREDICT UK
 # ============================================================================
 
 def transfer_to_uk(df, features, method='ridge'):
@@ -554,10 +644,7 @@ def transfer_to_uk(df, features, method='ridge'):
         y_pred = model.predict(X_te)
 
     elif method == 'mixed_effects':
-        # Train mixed-effects on non-UK, predict UK using fixed effects only
-        # Reduce features for MixedLM stability
         top_feats = _select_top_features(df, features, n_top=10)
-
         scaler = StandardScaler()
         X_scaled = pd.DataFrame(
             scaler.fit_transform(non_uk[top_feats].values),
@@ -573,7 +660,6 @@ def transfer_to_uk(df, features, method='ridge'):
                 groups=X_scaled['Country'],
             )
             result = model.fit(reml=True, maxiter=500)
-
             X_test_sc = pd.DataFrame(
                 scaler.transform(uk[top_feats].values),
                 columns=top_feats
@@ -599,14 +685,12 @@ def transfer_to_uk(df, features, method='ridge'):
         model = Ridge(alpha=10.0)
         model.fit(X_tr, y_train_corrected)
 
-        # For UK, we don't know the country mean — use grand mean of training
         grand_mean = np.mean(list(country_means.values()))
         y_pred = model.predict(X_te) + grand_mean
 
     elif method == 'coral':
-        # Pick largest non-UK country as reference, align others to it
         country_counts = non_uk['Country'].value_counts()
-        ref_country = country_counts.index[0]  # largest
+        ref_country = country_counts.index[0]
         ref_mask = non_uk['Country'] == ref_country
 
         X_train_aligned = X_train.copy()
@@ -615,9 +699,12 @@ def transfer_to_uk(df, features, method='ridge'):
                 continue
             c_mask = (non_uk['Country'] == other_country).values
             if c_mask.sum() >= 5 and ref_mask.sum() >= 5:
-                X_train_aligned[c_mask] = coral_transform(
-                    X_train[c_mask], X_train[ref_mask.values]
-                )
+                try:
+                    X_train_aligned[c_mask] = coral_transform(
+                        X_train[c_mask], X_train[ref_mask.values]
+                    )
+                except Exception:
+                    pass
 
         sc = StandardScaler()
         X_tr = sc.fit_transform(X_train_aligned)
@@ -625,6 +712,258 @@ def transfer_to_uk(df, features, method='ridge'):
         model = Ridge(alpha=10.0)
         model.fit(X_tr, y_train)
         y_pred = model.predict(X_te)
+
+    # === NEW TRANSFER METHODS ===
+
+    elif method == 'anomaly':
+        # Train on yield anomalies (z-scored within country), predict UK anomaly,
+        # estimate UK baseline from Ireland (closest climate analogue)
+        countries_train = non_uk['Country'].values
+        country_stats = {}
+        for c in np.unique(countries_train):
+            mask = countries_train == c
+            country_stats[c] = {'mean': y_train[mask].mean(), 'std': max(y_train[mask].std(), 0.01)}
+
+        # Normalise to anomalies: (yield - country_mean) / country_std
+        y_anomaly = np.array([
+            (y_train[i] - country_stats[countries_train[i]]['mean']) / country_stats[countries_train[i]]['std']
+            for i in range(len(y_train))
+        ])
+
+        sc = StandardScaler()
+        X_tr = sc.fit_transform(X_train)
+        X_te = sc.transform(X_test)
+        model = Ridge(alpha=10.0)
+        model.fit(X_tr, y_anomaly)
+
+        # Predict UK anomaly
+        anomaly_pred = model.predict(X_te)
+
+        # Estimate UK baseline from Ireland (closest climate analogue)
+        if 'Ireland' in country_stats:
+            uk_mean_est = country_stats['Ireland']['mean']
+            uk_std_est = country_stats['Ireland']['std']
+        else:
+            uk_mean_est = np.mean([s['mean'] for s in country_stats.values()])
+            uk_std_est = np.mean([s['std'] for s in country_stats.values()])
+
+        y_pred = anomaly_pred * uk_std_est + uk_mean_est
+
+    elif method == 'anomaly_climate_weighted':
+        # Anomaly model + climate-similarity weighting
+        countries_train = non_uk['Country'].values
+        country_stats = {}
+        for c in np.unique(countries_train):
+            mask = countries_train == c
+            country_stats[c] = {'mean': y_train[mask].mean(), 'std': max(y_train[mask].std(), 0.01)}
+
+        y_anomaly = np.array([
+            (y_train[i] - country_stats[countries_train[i]]['mean']) / country_stats[countries_train[i]]['std']
+            for i in range(len(y_train))
+        ])
+
+        # Climate-similarity weights
+        weights = _compute_climate_weights(df, features, target='UK')
+        train_weights = weights[~uk_mask.values]
+
+        sc = StandardScaler()
+        X_tr = sc.fit_transform(X_train)
+        X_te = sc.transform(X_test)
+        model = Ridge(alpha=10.0)
+        model.fit(X_tr, y_anomaly, sample_weight=train_weights)
+
+        anomaly_pred = model.predict(X_te)
+
+        if 'Ireland' in country_stats:
+            uk_mean_est = country_stats['Ireland']['mean']
+            uk_std_est = country_stats['Ireland']['std']
+        else:
+            uk_mean_est = np.mean([s['mean'] for s in country_stats.values()])
+            uk_std_est = np.mean([s['std'] for s in country_stats.values()])
+
+        y_pred = anomaly_pred * uk_std_est + uk_mean_est
+
+    elif method == 'ireland_only':
+        # Transfer from Ireland only (closest climate analogue)
+        ie_mask = non_uk['Country'] == 'Ireland'
+        ie_data = non_uk[ie_mask]
+        if len(ie_data) < 5:
+            return np.nan, np.nan
+
+        X_ie = ie_data[features].values
+        y_ie = ie_data['Yield_t_per_ha'].values
+
+        sc = StandardScaler()
+        X_tr = sc.fit_transform(X_ie)
+        X_te = sc.transform(X_test)
+        model = Ridge(alpha=10.0)
+        model.fit(X_tr, y_ie)
+        y_pred = model.predict(X_te)
+
+    elif method == 'climate_weighted':
+        # Plain Ridge but with climate-similarity sample weights
+        weights = _compute_climate_weights(df, features, target='UK')
+        train_weights = weights[~uk_mask.values]
+
+        sc = StandardScaler()
+        X_tr = sc.fit_transform(X_train)
+        X_te = sc.transform(X_test)
+        model = Ridge(alpha=10.0)
+        model.fit(X_tr, y_train, sample_weight=train_weights)
+        y_pred = model.predict(X_te)
+
+    elif method == 'transferable_features':
+        # Only use features with consistent cross-country effects
+        tf = _select_transferable_features(df, features, min_countries=4)
+        X_tr_tf = non_uk[tf].values
+        X_te_tf = uk[tf].values
+
+        sc = StandardScaler()
+        X_tr = sc.fit_transform(X_tr_tf)
+        X_te = sc.transform(X_te_tf)
+        model = Ridge(alpha=10.0)
+        model.fit(X_tr, y_train)
+        y_pred = model.predict(X_te)
+
+    elif method == 'per_country_zscore':
+        # Z-score features within each country, use Ireland stats for UK
+        # Use only features with enough variance in all countries
+        good_feats = []
+        for f_idx, f in enumerate(features):
+            all_ok = True
+            for c in non_uk['Country'].unique():
+                c_data = non_uk[non_uk['Country'] == c][f]
+                if c_data.std() < 0.01 or c_data.isna().any():
+                    all_ok = False
+                    break
+            if all_ok:
+                good_feats.append(f_idx)
+
+        if len(good_feats) < 3:
+            return np.nan, np.nan
+
+        feat_subset = [features[i] for i in good_feats]
+        X_train_sub = non_uk[feat_subset].values
+        X_test_sub = uk[feat_subset].values
+
+        country_feature_stats = {}
+        for c in non_uk['Country'].unique():
+            c_data = non_uk[non_uk['Country'] == c][feat_subset]
+            country_feature_stats[c] = {
+                'mean': c_data.mean().values,
+                'std': np.maximum(c_data.std().values, 0.01)
+            }
+
+        X_tr_z = np.zeros_like(X_train_sub, dtype=float)
+        for i, (_, row) in enumerate(non_uk.iterrows()):
+            c = row['Country']
+            X_tr_z[i] = (X_train_sub[i] - country_feature_stats[c]['mean']) / country_feature_stats[c]['std']
+
+        if 'Ireland' in country_feature_stats:
+            proxy = country_feature_stats['Ireland']
+        else:
+            proxy = {
+                'mean': np.mean([s['mean'] for s in country_feature_stats.values()], axis=0),
+                'std': np.mean([s['std'] for s in country_feature_stats.values()], axis=0)
+            }
+        X_te_z = (X_test_sub - proxy['mean']) / proxy['std']
+
+        # Replace any remaining NaN/inf
+        X_tr_z = np.nan_to_num(X_tr_z, nan=0.0, posinf=0.0, neginf=0.0)
+        X_te_z = np.nan_to_num(X_te_z, nan=0.0, posinf=0.0, neginf=0.0)
+
+        model = Ridge(alpha=10.0)
+        model.fit(X_tr_z, y_train)
+        y_pred = model.predict(X_te_z)
+
+    elif method == 'combined':
+        # COMBINED: anomaly + climate weighting + transferable features + per-country z-score
+        tf = _select_transferable_features(df, features, min_countries=4)
+
+        countries_train = non_uk['Country'].values
+        country_stats = {}
+        country_feature_stats = {}
+        for c in np.unique(countries_train):
+            mask = countries_train == c
+            country_stats[c] = {'mean': y_train[mask].mean(), 'std': max(y_train[mask].std(), 0.01)}
+            c_data = non_uk[non_uk['Country'] == c][tf]
+            country_feature_stats[c] = {
+                'mean': c_data.mean().values,
+                'std': np.maximum(c_data.std().values, 0.01)
+            }
+
+        # Yield anomalies
+        y_anomaly = np.array([
+            (y_train[i] - country_stats[countries_train[i]]['mean']) / country_stats[countries_train[i]]['std']
+            for i in range(len(y_train))
+        ])
+
+        # Per-country z-scored features (transferable only)
+        X_train_tf = non_uk[tf].values
+        X_test_tf = uk[tf].values
+        X_tr_z = np.zeros_like(X_train_tf, dtype=float)
+        for i, (_, row) in enumerate(non_uk.iterrows()):
+            c = row['Country']
+            X_tr_z[i] = (X_train_tf[i] - country_feature_stats[c]['mean']) / country_feature_stats[c]['std']
+
+        if 'Ireland' in country_feature_stats:
+            proxy = country_feature_stats['Ireland']
+        else:
+            proxy = {
+                'mean': np.mean([s['mean'] for s in country_feature_stats.values()], axis=0),
+                'std': np.mean([s['std'] for s in country_feature_stats.values()], axis=0)
+            }
+        X_te_z = (X_test_tf - proxy['mean']) / proxy['std']
+
+        # Clean NaN/inf
+        X_tr_z = np.nan_to_num(X_tr_z, nan=0.0, posinf=0.0, neginf=0.0)
+        X_te_z = np.nan_to_num(X_te_z, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Climate weights
+        weights = _compute_climate_weights(df, tf, target='UK')
+        train_weights = weights[~uk_mask.values]
+
+        model = Ridge(alpha=10.0)
+        model.fit(X_tr_z, y_anomaly, sample_weight=train_weights)
+        anomaly_pred = model.predict(X_te_z)
+
+        if 'Ireland' in country_stats:
+            uk_mean_est = country_stats['Ireland']['mean']
+            uk_std_est = country_stats['Ireland']['std']
+        else:
+            uk_mean_est = np.mean([s['mean'] for s in country_stats.values()])
+            uk_std_est = np.mean([s['std'] for s in country_stats.values()])
+
+        y_pred = anomaly_pred * uk_std_est + uk_mean_est
+
+    elif method == 'finetune':
+        # Semi-supervised: pre-train on non-UK, calibrate with 5 UK years
+        # Use first 5 UK years as calibration, rest as test
+        uk_sorted = uk.sort_values('Year')
+        n_cal = min(5, len(uk_sorted) // 2)
+        uk_cal = uk_sorted.iloc[:n_cal]
+        uk_test = uk_sorted.iloc[n_cal:]
+
+        if len(uk_test) < 3:
+            return np.nan, np.nan
+
+        X_test_final = uk_test[features].values
+        y_test = uk_test['Yield_t_per_ha'].values
+
+        # Pre-train on non-UK
+        sc = StandardScaler()
+        X_all_train = np.vstack([X_train, uk_cal[features].values])
+        y_all_train = np.concatenate([y_train, uk_cal['Yield_t_per_ha'].values])
+
+        X_tr = sc.fit_transform(X_all_train)
+        X_te = sc.transform(X_test_final)
+        model = Ridge(alpha=10.0)
+        model.fit(X_tr, y_all_train)
+        y_pred = model.predict(X_te)
+
+        r2 = r2_score(y_test, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+        return r2, rmse
 
     else:
         return np.nan, np.nan
@@ -768,8 +1107,20 @@ def main():
     print("EXPERIMENT 2: TRANSFER TEST — Train on non-UK, Predict UK")
     print("=" * 75)
 
-    transfer_methods = ['ridge', 'mixed_effects', 'bias_corrected', 'coral']
-    transfer_labels = ['Ridge (plain)', 'MixedLM (FE only)', 'Bias Corrected', 'CORAL']
+    transfer_methods = [
+        'ridge', 'bias_corrected', 'mixed_effects',
+        'anomaly', 'anomaly_climate_weighted',
+        'ireland_only', 'climate_weighted',
+        'transferable_features', 'per_country_zscore',
+        'combined', 'finetune',
+    ]
+    transfer_labels = [
+        'Ridge (plain)', 'Bias Corrected', 'MixedLM (FE only)',
+        'Anomaly Model', 'Anomaly+ClimWeight',
+        'Ireland Only', 'Climate Weighted',
+        'Transferable Feats', 'Per-Country Z-score',
+        'COMBINED', 'Fine-tune (5yr UK)',
+    ]
 
     print(f"\n  {'Method':<25} ", end="")
     for crop in CROPS:

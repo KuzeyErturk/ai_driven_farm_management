@@ -68,6 +68,32 @@ Our pooled Ridge model (all 47 features + binary Is_France/Is_Germany indicators
 - Interesting but not practical with current 3-country setup
 - **Why it could work in theory:** Designed exactly for few-shot adaptation, but needs a larger set of source tasks (countries)
 
+### 7. Long-History Detrended Anomaly Transfer (MEDIUM-HIGH feasibility)
+- **Core idea:** Use the full historical depth of each country's data (especially France: 1900–2018) rather than trimming everyone to the UK's 2004–2018 window. Train robust weather-anomaly relationships on 60–100+ years of detrended data, then apply to UK weather anomalies.
+- **Available historical depth:**
+  - France (Schauberger/GDHY): **1900–2018** — 118 years of département-level yield + weather
+  - Germany (OpenAgrar): ~1999–2021
+  - IE/NL/BE/DK (Eurostat): ~2000–2023
+  - UK: 2004–2018 (unchanged)
+- **Why it differs from current transfer:** Current approach trains on 13 overlapping years per country. This approach uses France's full 60+ year detrended series to learn the *shape* of weather-yield responses (non-linear thresholds, interaction effects) with far more statistical power — more extreme years observed, better-estimated coefficients.
+- **Implementation steps:**
+  1. Load full historical yield + weather for each country (no year trimming)
+  2. Detrend yields per country (loess or first-difference) to remove technology/variety confound
+  3. Train weather → yield-anomaly models on long histories (France especially)
+  4. Transfer the anomaly response curves to UK weather, then add UK's own trend back
+- **Why it could work:**
+  - Avoids direct level transfer — you're transferring the *response shape*, not the yield level
+  - 60+ years captures more weather extremes (droughts, heatwaves) than 13 years, giving better-estimated non-linear responses
+  - Technology/variety trends are removed by detrending, isolating pure weather signal
+  - Continental-scale weather events (2003 heatwave, 1976 drought) hit multiple countries — long histories capture more shared extremes
+  - EU countries adopted similar varieties/practices over time with lags — long French series captures yield plateau trends the UK also experienced
+- **Challenges:**
+  - Pre-1980 weather data quality degrades (ERA5 reanalysis back to 1940, E-OBS to ~1950)
+  - Non-stationarity: weather-yield relationships change as varieties improve heat tolerance, irrigation expands — a 1970 relationship may not hold in 2010
+  - Detrending must be done carefully to not remove climate-change signal that we want to capture
+  - France is the only country with truly deep history; others add only 3–7 extra years
+- **Best variant:** Use France's long detrended anomaly series as the primary training source. Our anomaly-based transfer already showed the first positive R² for OSR (+0.139), so this is a natural extension with much more training data.
+
 ---
 
 ## Key Insight
