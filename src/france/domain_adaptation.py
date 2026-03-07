@@ -158,11 +158,13 @@ def prepare_pooled_features(pooled_df):
 # ============================================================================
 
 def loocv_ridge_baseline(df, features):
-    """Pooled Ridge with Is_France/Is_Germany indicators (current approach)."""
+    """Pooled Ridge with binary country indicators (one-hot, drop UK as reference)."""
     df = df.copy()
-    df['Is_France'] = (df['Country'] == 'France').astype(int)
-    df['Is_Germany'] = (df['Country'] == 'Germany').astype(int)
-    feat_cols = features + ['Is_France', 'Is_Germany']
+    # Create binary indicator for every non-UK country
+    non_uk_countries = sorted([c for c in df['Country'].unique() if c != 'UK'])
+    for c in non_uk_countries:
+        df[f'Is_{c}'] = (df['Country'] == c).astype(int)
+    feat_cols = features + [f'Is_{c}' for c in non_uk_countries]
 
     X = df[feat_cols].values
     y = df['Yield_t_per_ha'].values
@@ -184,13 +186,41 @@ def loocv_ridge_baseline(df, features):
 # APPROACH 1: MIXED-EFFECTS MODELS
 # ============================================================================
 
+def _select_top_features(df, features, n_top=10):
+    """Select top N features by correlation with yield, removing highly correlated pairs."""
+    correlations = []
+    for f in features:
+        if df[f].std() > 0.001:
+            corr = abs(df[f].corr(df['Yield_t_per_ha']))
+            if not np.isnan(corr):
+                correlations.append((f, corr))
+    correlations.sort(key=lambda x: x[1], reverse=True)
+
+    # Greedy selection: skip features with |r| > 0.85 to an already-selected feature
+    selected = []
+    for f, _ in correlations:
+        if len(selected) >= n_top:
+            break
+        too_correlated = False
+        for s in selected:
+            if abs(df[f].corr(df[s])) > 0.85:
+                too_correlated = True
+                break
+        if not too_correlated:
+            selected.append(f)
+    return selected
+
+
 def loocv_mixed_effects_intercept(df, features):
     """
     Mixed-effects model: fixed weather slopes + random country intercepts.
     Uses statsmodels MixedLM with Country as group variable.
+    Reduces to top 15 features for numerical stability.
     """
-    X_cols = features
     df = df.copy().reset_index(drop=True)
+
+    # Reduce feature set for MixedLM stability
+    X_cols = _select_top_features(df, features, n_top=10)
 
     # Scale features for numerical stability
     scaler = StandardScaler()
@@ -213,21 +243,19 @@ def loocv_mixed_effects_intercept(df, features):
         test = X_scaled.iloc[te]
 
         try:
-            formula_parts = ' + '.join(X_cols)
             # MixedLM: Yield ~ weather features (fixed) + (1 | Country)
+            X_train_const = sm.add_constant(train[X_cols])
             model = MixedLM(
                 endog=train['Yield_t_per_ha'],
-                exog=sm.add_constant(train[X_cols]),
+                exog=X_train_const,
                 groups=train['Country'],
             )
-            result = model.fit(reml=True, maxiter=200)
+            result = model.fit(reml=True, maxiter=500)
 
-            # Predict: fixed effects only (country RE not available for LOO test point
-            # from the same dataset, but the RE is estimated from training data)
-            X_test = sm.add_constant(test[X_cols])
+            # Predict: ensure test has same constant column
+            X_test = sm.add_constant(test[X_cols], has_constant='add')
             y_pred[te] = result.predict(X_test)
 
-            # Add random effect for the test country if available
             test_country = test['Country'].values[0]
             if test_country in result.random_effects:
                 y_pred[te] += result.random_effects[test_country].values[0]
@@ -253,15 +281,19 @@ def loocv_mixed_effects_slopes(df, features):
     Mixed-effects model: fixed weather slopes + random country intercepts AND slopes.
     Random slopes on key weather variables (Summer_Tmax, Spring_Rain, etc.)
     Each country gets its own temperature-yield curve, rainfall-yield curve, etc.
+    Reduces to top 15 features for numerical stability.
     """
-    X_cols = features
     df = df.copy().reset_index(drop=True)
 
-    # Identify which key slope variables are in our features
+    # Reduce feature set
+    X_cols = _select_top_features(df, features, n_top=10)
+
+    # Identify which key slope variables are in our reduced features
     slope_vars = [v for v in KEY_WEATHER_FOR_SLOPES if v in X_cols]
     if not slope_vars:
-        # Fallback: use first 3 features as slope vars
         slope_vars = X_cols[:3]
+    # Limit to 3 slope vars max for stability
+    slope_vars = slope_vars[:3]
 
     # Scale features
     scaler = StandardScaler()
@@ -296,19 +328,17 @@ def loocv_mixed_effects_slopes(df, features):
                 groups=train['Country'],
                 exog_re=re_formula,
             )
-            result = model.fit(reml=True, maxiter=200)
+            result = model.fit(reml=True, maxiter=500)
 
             # Fixed effects prediction
-            X_test = sm.add_constant(test[X_cols])
+            X_test = sm.add_constant(test[X_cols], has_constant='add')
             y_pred[te] = result.predict(X_test)
 
             # Add random effects for test country
             test_country = test['Country'].values[0]
             if test_country in result.random_effects:
                 re_vals = result.random_effects[test_country].values
-                # Random intercept
-                y_pred[te] += re_vals[0]
-                # Random slopes
+                y_pred[te] += re_vals[0]  # random intercept
                 for j, sv in enumerate(slope_vars):
                     if j + 1 < len(re_vals):
                         y_pred[te] += re_vals[j + 1] * test[sv].values[0]
@@ -321,8 +351,8 @@ def loocv_mixed_effects_slopes(df, features):
                     exog=sm.add_constant(train[X_cols]),
                     groups=train['Country'],
                 )
-                result = model.fit(reml=True, maxiter=200)
-                X_test = sm.add_constant(test[X_cols])
+                result = model.fit(reml=True, maxiter=500)
+                X_test = sm.add_constant(test[X_cols], has_constant='add')
                 y_pred[te] = result.predict(X_test)
                 test_country = test['Country'].values[0]
                 if test_country in result.random_effects:
@@ -419,23 +449,26 @@ def coral_transform(X_source, X_target):
 def loocv_coral(df, features):
     """
     CORAL domain adaptation: align non-UK features to UK distribution,
-    then train pooled Ridge.
+    then train pooled Ridge. Requires min 20 samples per country for alignment.
     """
     df = df.copy().reset_index(drop=True)
     X = df[features].values
     y = df['Yield_t_per_ha'].values
     countries = df['Country'].values
+    n_features = X.shape[1]
 
     n = len(y)
     y_pred = np.zeros(n)
     loo = LeaveOneOut()
 
+    # Minimum samples needed for stable covariance estimation
+    min_samples = max(20, n_features + 5)
+
     for tr, te in loo.split(X):
-        # Get UK data indices in training set
         uk_mask = countries[tr] == 'UK'
 
-        if uk_mask.sum() < 5:
-            # Not enough UK data, fall back to regular Ridge
+        if uk_mask.sum() < min_samples:
+            # Not enough UK data for stable CORAL, fall back to Ridge
             sc = StandardScaler()
             X_tr = sc.fit_transform(X[tr])
             X_te = sc.transform(X[te])
@@ -452,29 +485,33 @@ def loocv_coral(df, features):
             if country == 'UK':
                 continue
             c_mask = countries[tr] == country
-            if c_mask.sum() < 5:
-                continue
-            X_train_aligned[c_mask] = coral_transform(X[tr][c_mask], X_uk)
+            if c_mask.sum() < min_samples:
+                continue  # Skip alignment for small countries
+            try:
+                X_train_aligned[c_mask] = coral_transform(X[tr][c_mask], X_uk)
+            except Exception:
+                pass  # Keep original if transform fails
 
-        # Align test point based on its country
+        # Align test point
         test_country = countries[te[0]]
         X_test_point = X[te].copy()
         if test_country != 'UK':
             c_mask_all = countries[tr] == test_country
-            if c_mask_all.sum() >= 5:
-                # Use training data from same country to estimate transform
-                X_country_train = X[tr][c_mask_all]
-                Cs = np.cov(X_country_train, rowvar=False) + np.eye(X[te].shape[1]) * 1e-6
-                Ct = np.cov(X_uk, rowvar=False) + np.eye(X[te].shape[1]) * 1e-6
-                Ds, Vs = np.linalg.eigh(Cs)
-                Ds = np.maximum(Ds, 1e-6)
-                Cs_neg_half = Vs @ np.diag(1.0 / np.sqrt(Ds)) @ Vs.T
-                Dt, Vt = np.linalg.eigh(Ct)
-                Dt = np.maximum(Dt, 1e-6)
-                Ct_half = Vt @ np.diag(np.sqrt(Dt)) @ Vt.T
-                X_test_point = (X_test_point - X_country_train.mean(axis=0)) @ Cs_neg_half @ Ct_half + X_uk.mean(axis=0)
+            if c_mask_all.sum() >= min_samples:
+                try:
+                    X_country_train = X[tr][c_mask_all]
+                    Cs = np.cov(X_country_train, rowvar=False) + np.eye(n_features) * 1e-4
+                    Ct = np.cov(X_uk, rowvar=False) + np.eye(n_features) * 1e-4
+                    Ds, Vs = np.linalg.eigh(Cs)
+                    Ds = np.maximum(Ds, 1e-4)
+                    Cs_neg_half = Vs @ np.diag(1.0 / np.sqrt(Ds)) @ Vs.T
+                    Dt, Vt = np.linalg.eigh(Ct)
+                    Dt = np.maximum(Dt, 1e-4)
+                    Ct_half = Vt @ np.diag(np.sqrt(Dt)) @ Vt.T
+                    X_test_point = (X_test_point - X_country_train.mean(axis=0)) @ Cs_neg_half @ Ct_half + X_uk.mean(axis=0)
+                except Exception:
+                    pass
 
-        # Scale and train
         sc = StandardScaler()
         X_tr_sc = sc.fit_transform(X_train_aligned)
         X_te_sc = sc.transform(X_test_point)
@@ -518,10 +555,13 @@ def transfer_to_uk(df, features, method='ridge'):
 
     elif method == 'mixed_effects':
         # Train mixed-effects on non-UK, predict UK using fixed effects only
+        # Reduce features for MixedLM stability
+        top_feats = _select_top_features(df, features, n_top=10)
+
         scaler = StandardScaler()
         X_scaled = pd.DataFrame(
-            scaler.fit_transform(X_train),
-            columns=features
+            scaler.fit_transform(non_uk[top_feats].values),
+            columns=top_feats
         )
         X_scaled['Country'] = non_uk['Country'].values
         X_scaled['Yield_t_per_ha'] = y_train
@@ -529,17 +569,16 @@ def transfer_to_uk(df, features, method='ridge'):
         try:
             model = MixedLM(
                 endog=X_scaled['Yield_t_per_ha'],
-                exog=sm.add_constant(X_scaled[features]),
+                exog=sm.add_constant(X_scaled[top_feats]),
                 groups=X_scaled['Country'],
             )
-            result = model.fit(reml=True, maxiter=200)
+            result = model.fit(reml=True, maxiter=500)
 
             X_test_sc = pd.DataFrame(
-                scaler.transform(X_test),
-                columns=features
+                scaler.transform(uk[top_feats].values),
+                columns=top_feats
             )
-            y_pred = result.predict(sm.add_constant(X_test_sc))
-            # No country RE for UK since it's not in training
+            y_pred = result.predict(sm.add_constant(X_test_sc, has_constant='add'))
         except Exception:
             return np.nan, np.nan
 
@@ -565,15 +604,20 @@ def transfer_to_uk(df, features, method='ridge'):
         y_pred = model.predict(X_te) + grand_mean
 
     elif method == 'coral':
-        # Pick France as reference (most data), align Germany to France, predict UK
-        fr_mask = non_uk['Country'] == 'France'
-        de_mask = non_uk['Country'] == 'Germany'
+        # Pick largest non-UK country as reference, align others to it
+        country_counts = non_uk['Country'].value_counts()
+        ref_country = country_counts.index[0]  # largest
+        ref_mask = non_uk['Country'] == ref_country
 
         X_train_aligned = X_train.copy()
-        if fr_mask.sum() >= 5 and de_mask.sum() >= 5:
-            X_train_aligned[de_mask.values] = coral_transform(
-                X_train[de_mask.values], X_train[fr_mask.values]
-            )
+        for other_country in non_uk['Country'].unique():
+            if other_country == ref_country:
+                continue
+            c_mask = (non_uk['Country'] == other_country).values
+            if c_mask.sum() >= 5 and ref_mask.sum() >= 5:
+                X_train_aligned[c_mask] = coral_transform(
+                    X_train[c_mask], X_train[ref_mask.values]
+                )
 
         sc = StandardScaler()
         X_tr = sc.fit_transform(X_train_aligned)
@@ -694,8 +738,13 @@ def main():
             print(f" {r2:>12.3f}", end="")
         print(f" {np.nanmean(vals):>10.3f}")
 
-    # Per-country breakdown
-    for country_label in ['UK', 'France', 'Germany']:
+    # Per-country breakdown — dynamically detect all countries
+    all_countries = sorted(set(
+        c for crop in CROPS
+        for mn in method_names
+        for c in all_results[crop][mn]['per_country'].keys()
+    ))
+    for country_label in all_countries:
         print(f"\n  {country_label} R²:")
         print(f"  {'Method':<25} ", end="")
         for crop in CROPS:
@@ -716,7 +765,7 @@ def main():
     # EXPERIMENT 2: TRANSFER TEST (train non-UK, predict UK)
     # =====================================================================
     print("\n" + "=" * 75)
-    print("EXPERIMENT 2: TRANSFER TEST — Train on FR+DE, Predict UK")
+    print("EXPERIMENT 2: TRANSFER TEST — Train on non-UK, Predict UK")
     print("=" * 75)
 
     transfer_methods = ['ridge', 'mixed_effects', 'bias_corrected', 'coral']
