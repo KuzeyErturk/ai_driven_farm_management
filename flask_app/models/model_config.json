@@ -1,113 +1,107 @@
 {
   "Wheat": {
-    "model_type": "RandomForest",
+    "model_type": "Pooled Anomaly Ridge (α=1.0)",
     "features": {
-      "Area_hectares": {
-        "min": 6845.0,
-        "max": 1934708.0,
-        "default": 56606.0,
-        "unit": "ha",
-        "label": "Crop Area",
-        "input_type": "number"
-      },
       "Winter_Sun": {
         "min": 114.0,
-        "max": 235.0,
-        "default": 152.0,
+        "max": 233.0,
+        "default": 153.0,
         "unit": "hours",
         "label": "Winter Sunshine",
         "input_type": "range"
       },
       "Summer_Sun": {
-        "min": 314.0,
-        "max": 681.0,
-        "default": 481.0,
+        "min": 343.0,
+        "max": 668.0,
+        "default": 477.0,
         "unit": "hours",
         "label": "Summer Sunshine",
         "input_type": "range"
       },
-      "Extreme_Summer_Rain": {
-        "min": 0,
-        "max": 1,
-        "default": 0,
-        "unit": "",
-        "label": "Extreme Summer Rain Event",
-        "input_type": "toggle"
+      "Grain_Filling_Rain": {
+        "min": 104.0,
+        "max": 355.0,
+        "default": 202.0,
+        "unit": "mm",
+        "label": "Grain Filling Rain",
+        "input_type": "range"
+      },
+      "Grain_Filling_Temp": {
+        "min": 12.0,
+        "max": 18.0,
+        "default": 15.0,
+        "unit": "°C",
+        "label": "Grain Filling Temp",
+        "input_type": "range"
+      },
+      "Summer_Tmax": {
+        "min": 15.0,
+        "max": 23.0,
+        "default": 18.0,
+        "unit": "°C",
+        "label": "Summer Max Temp",
+        "input_type": "range"
+      }
+    },
+    "loocv_r2": 0.682,
+    "train_r2": 0.745,
+    "uk_base_yield": 7.65
+  },
+  "Winter_Barley": {
+    "model_type": "Pooled Anomaly Ridge (α=1.0)",
+    "features": {
+      "Spring_Tmax": {
+        "min": 8.0,
+        "max": 15.0,
+        "default": 12.0,
+        "unit": "°C",
+        "label": "Spring Max Temp",
+        "input_type": "range"
+      },
+      "Winter_Sun": {
+        "min": 114.0,
+        "max": 233.0,
+        "default": 153.0,
+        "unit": "hours",
+        "label": "Winter Sunshine",
+        "input_type": "range"
+      },
+      "Planting_Rain": {
+        "min": 159.0,
+        "max": 583.0,
+        "default": 349.0,
+        "unit": "mm",
+        "label": "Planting Rain",
+        "input_type": "range"
+      },
+      "Winter_Frost": {
+        "min": 15.0,
+        "max": 67.0,
+        "default": 30.0,
+        "unit": "days",
+        "label": "Winter Frost Days",
+        "input_type": "range"
       },
       "Grain_Filling_Rain": {
-        "min": 58.0,
+        "min": 104.0,
         "max": 355.0,
-        "default": 197.0,
+        "default": 202.0,
         "unit": "mm",
         "label": "Grain Filling Rain",
         "input_type": "range"
       }
     },
-    "loocv_r2": 0.355,
-    "train_r2": 0.891
-  },
-  "Winter_Barley": {
-    "model_type": "RandomForest",
-    "features": {
-      "Area_hectares": {
-        "min": 4012.0,
-        "max": 390983.0,
-        "default": 23306.0,
-        "unit": "ha",
-        "label": "Crop Area",
-        "input_type": "number"
-      },
-      "Spring_Tmax": {
-        "min": 8.0,
-        "max": 15.0,
-        "default": 12.0,
-        "unit": "\u00b0C",
-        "label": "Spring Max Temperature",
-        "input_type": "range"
-      },
-      "Winter_Sun": {
-        "min": 114.0,
-        "max": 235.0,
-        "default": 152.0,
-        "unit": "hours",
-        "label": "Winter Sunshine",
-        "input_type": "range"
-      },
-      "Planting_Rain": {
-        "min": 159.0,
-        "max": 583.0,
-        "default": 362.0,
-        "unit": "mm",
-        "label": "Planting Rain",
-        "input_type": "range"
-      },
-      "Winter_Frost": {
-        "min": 13.0,
-        "max": 67.0,
-        "default": 28.0,
-        "unit": "days",
-        "label": "Winter Frost Days",
-        "input_type": "range"
-      }
-    },
-    "loocv_r2": 0.238,
-    "train_r2": 0.792
+    "loocv_r2": 0.624,
+    "train_r2": 0.756,
+    "uk_base_yield": 6.66
   },
   "Spring_Barley": {
-    "model_type": "Ridge",
+    "model_type": "Pooled Anomaly Ridge (α=100.0)",
     "features": {
-      "Area_hectares": {
-        "min": 11062.0,
-        "max": 791710.0,
-        "default": 121566.0,
-        "unit": "ha",
-        "label": "Crop Area",
-        "input_type": "number"
-      },
       "Spring_Rain": {
         "min": 79.0,
         "max": 408.0,
-        "default": 241.0,
+        "default": 245.0,
         "unit": "mm",
         "label": "Spring Rainfall",
         "input_type": "range"
@@ -116,98 +110,133 @@
         "min": 8.0,
         "max": 15.0,
         "default": 12.0,
-        "unit": "\u00b0C",
-        "label": "Spring Max Temperature",
+        "unit": "°C",
+        "label": "Spring Max Temp",
         "input_type": "range"
       },
       "Summer_Sun": {
-        "min": 314.0,
-        "max": 681.0,
-        "default": 481.0,
+        "min": 343.0,
+        "max": 668.0,
+        "default": 477.0,
         "unit": "hours",
         "label": "Summer Sunshine",
         "input_type": "range"
+      },
+      "Summer_Rain": {
+        "min": 149.0,
+        "max": 509.0,
+        "default": 287.0,
+        "unit": "mm",
+        "label": "Summer Rainfall",
+        "input_type": "range"
+      },
+      "Flowering_Temp": {
+        "min": 9.0,
+        "max": 14.0,
+        "default": 12.0,
+        "unit": "°C",
+        "label": "Flowering Temperature",
+        "input_type": "range"
       }
     },
-    "loocv_r2": 0.221,
-    "train_r2": 0.295
+    "loocv_r2": 0.76,
+    "train_r2": 0.47,
+    "uk_base_yield": 5.22
   },
   "Oats": {
-    "model_type": "RandomForest",
+    "model_type": "Pooled Anomaly Ridge (α=10.0)",
     "features": {
-      "Area_hectares": {
-        "min": 1788.0,
-        "max": 169362.0,
-        "default": 12675.0,
-        "unit": "ha",
-        "label": "Crop Area",
-        "input_type": "number"
-      },
       "Spring_Rain": {
         "min": 79.0,
         "max": 408.0,
-        "default": 241.0,
+        "default": 245.0,
         "unit": "mm",
         "label": "Spring Rainfall",
+        "input_type": "range"
+      },
+      "Flowering_Sun": {
+        "min": 238.0,
+        "max": 448.0,
+        "default": 360.0,
+        "unit": "hours",
+        "label": "Flowering Sunshine",
+        "input_type": "range"
+      },
+      "Summer_Rain": {
+        "min": 149.0,
+        "max": 509.0,
+        "default": 287.0,
+        "unit": "mm",
+        "label": "Summer Rainfall",
+        "input_type": "range"
+      },
+      "Spring_Tmax": {
+        "min": 8.0,
+        "max": 15.0,
+        "default": 12.0,
+        "unit": "°C",
+        "label": "Spring Max Temp",
         "input_type": "range"
       },
       "Rain_Deviation_from_Optimal": {
         "min": 0.0,
         "max": 286.0,
-        "default": 101.0,
+        "default": 98.0,
         "unit": "mm",
         "label": "Rain Deviation from Optimal",
         "input_type": "range"
-      },
-      "Flowering_Sun": {
-        "min": 238.0,
-        "max": 497.0,
-        "default": 362.0,
-        "unit": "hours",
-        "label": "Flowering Sunshine",
-        "input_type": "range"
       }
     },
-    "loocv_r2": 0.248,
-    "train_r2": 0.579
+    "loocv_r2": 0.492,
+    "train_r2": 0.608,
+    "uk_base_yield": 5.57
   },
   "OSR": {
-    "model_type": "SVR",
+    "model_type": "Pooled Anomaly Ridge (α=1.0)",
     "features": {
-      "Area_hectares": {
-        "min": 255.0,
-        "max": 712671.0,
-        "default": 18118.0,
-        "unit": "ha",
-        "label": "Crop Area",
-        "input_type": "number"
-      },
       "Summer_Tmin": {
         "min": 8.0,
         "max": 12.0,
-        "default": 11.0,
-        "unit": "\u00b0C",
-        "label": "Summer Min Temperature",
+        "default": 10.0,
+        "unit": "°C",
+        "label": "Summer Min Temp",
         "input_type": "range"
       },
       "Planting_Rain": {
         "min": 159.0,
         "max": 583.0,
-        "default": 362.0,
+        "default": 349.0,
         "unit": "mm",
         "label": "Planting Rain",
         "input_type": "range"
       },
       "Winter_Frost": {
-        "min": 13.0,
+        "min": 15.0,
         "max": 67.0,
-        "default": 28.0,
+        "default": 30.0,
         "unit": "days",
         "label": "Winter Frost Days",
         "input_type": "range"
+      },
+      "Autumn_Rain": {
+        "min": 159.0,
+        "max": 583.0,
+        "default": 349.0,
+        "unit": "mm",
+        "label": "Autumn Rainfall",
+        "input_type": "range"
+      },
+      "Spring_Tmax": {
+        "min": 8.0,
+        "max": 15.0,
+        "default": 12.0,
+        "unit": "°C",
+        "label": "Spring Max Temp",
+        "input_type": "range"
       }
     },
-    "loocv_r2": 0.196,
-    "train_r2": 0.264
+    "loocv_r2": 0.443,
+    "train_r2": 0.73,
+    "uk_base_yield": 3.4
   }
 }
