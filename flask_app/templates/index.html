@@ -33,6 +33,13 @@
                         <span class="badge bg-secondary model-badge" id="modelBadge"></span>
                     </div>
                     <div class="card-body">
+                        <div class="alert alert-light py-2 px-3 mb-3 d-flex justify-content-between align-items-center" id="modelInfoBar">
+                            <small>
+                                <strong>Model Accuracy (LOOCV R²):</strong>
+                                <span id="r2Value" class="fw-bold">--</span>
+                            </small>
+                            <span class="badge" id="r2Badge">--</span>
+                        </div>
                         <form id="predictionForm">
                             <div class="row mb-3">
                                 <div class="col-md-6">
@@ -155,6 +162,21 @@
             // Update model badge
             const badge = document.getElementById('modelBadge');
             badge.textContent = 'Model: ' + config.model_type;
+
+            // Update R² display
+            const r2 = config.loocv_r2;
+            document.getElementById('r2Value').textContent = r2 !== undefined ? r2.toFixed(3) : '--';
+            const r2Badge = document.getElementById('r2Badge');
+            if (r2 >= 0.7) {
+                r2Badge.textContent = 'Good';
+                r2Badge.className = 'badge bg-success';
+            } else if (r2 >= 0.5) {
+                r2Badge.textContent = 'Moderate';
+                r2Badge.className = 'badge bg-warning text-dark';
+            } else {
+                r2Badge.textContent = 'Fair';
+                r2Badge.className = 'badge bg-secondary';
+            }
 
             const features = config.features;
             for (const [name, meta] of Object.entries(features)) {

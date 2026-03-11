@@ -42,6 +42,13 @@
                         <span class="badge bg-secondary model-badge" id="scenarioModelBadge"></span>
                     </div>
                     <div class="card-body">
+                        <div class="alert alert-light py-2 px-3 mb-3 d-flex justify-content-between align-items-center">
+                            <small>
+                                <strong>LOOCV R²:</strong>
+                                <span id="scenarioR2Value" class="fw-bold">--</span>
+                            </small>
+                            <span class="badge" id="scenarioR2Badge">--</span>
+                        </div>
                         <select class="form-select mb-3" id="scenarioCrop" onchange="onScenarioCropChange()">
                             {% for crop in crops %}
                             <option value="{{ crop }}">{{ crop.replace('_', ' ') }}</option>
@@ -187,6 +194,21 @@
 
             // Update model badge
             document.getElementById('scenarioModelBadge').textContent = 'Model: ' + config.model_type;
+
+            // Update R² display
+            const r2 = config.loocv_r2;
+            document.getElementById('scenarioR2Value').textContent = r2 !== undefined ? r2.toFixed(3) : '--';
+            const r2Badge = document.getElementById('scenarioR2Badge');
+            if (r2 >= 0.7) {
+                r2Badge.textContent = 'Good';
+                r2Badge.className = 'badge bg-success';
+            } else if (r2 >= 0.5) {
+                r2Badge.textContent = 'Moderate';
+                r2Badge.className = 'badge bg-warning text-dark';
+            } else {
+                r2Badge.textContent = 'Fair';
+                r2Badge.className = 'badge bg-secondary';
+            }
 
             for (const [name, meta] of Object.entries(config.features)) {
                 const div = document.createElement('div');
