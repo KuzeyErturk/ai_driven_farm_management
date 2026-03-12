@@ -126,11 +126,9 @@
                         <small>
                             <strong>Historical Averages (t/ha):</strong>
                             <ul class="mb-0">
-                                <li>Wheat: 8.0</li>
-                                <li>Winter Barley: 6.5</li>
-                                <li>Spring Barley: 5.5</li>
-                                <li>Oats: 5.8</li>
-                                <li>OSR: 3.2</li>
+                                {% for crop_name in crops %}
+                                <li>{{ crop_name.replace('_', ' ') }}: {{ model_config.get(crop_name, {}).get('uk_base_yield', '?') }}</li>
+                                {% endfor %}
                             </ul>
                         </small>
                     </div>

@@ -296,15 +296,17 @@ def detect_extreme_conditions(data):
 
 
 def get_historical_average(crop):
-    """Get historical average yield for crop."""
-    averages = {
-        'Wheat': 8.0,
-        'Winter_Barley': 6.5,
-        'Spring_Barley': 5.5,
-        'Oats': 5.8,
-        'OSR': 3.2
+    """Get historical average yield for crop from model metadata."""
+    crop_config = MODEL_CONFIG.get(crop, {})
+    base_yield = crop_config.get('uk_base_yield')
+    if base_yield is not None:
+        return base_yield
+    # Fallback if model config not loaded
+    fallbacks = {
+        'Wheat': 8.0, 'Winter_Barley': 6.5, 'Spring_Barley': 5.5,
+        'Oats': 5.8, 'OSR': 3.2
     }
-    return averages.get(crop, 6.5)
+    return fallbacks.get(crop, 6.5)
 
 
 @app.route('/scenario')

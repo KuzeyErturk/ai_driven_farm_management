@@ -181,9 +181,10 @@
             }
         };
 
-        const historicalAverages = {
-            'Wheat': 8.0, 'Winter_Barley': 6.5, 'Spring_Barley': 5.5, 'Oats': 5.8, 'OSR': 3.2
-        };
+        const historicalAverages = {};
+        for (const [crop, cfg] of Object.entries(modelConfig)) {
+            historicalAverages[crop] = cfg.uk_base_yield || 6.5;
+        }
 
         function buildScenarioSliders(crop) {
             const config = modelConfig[crop];
