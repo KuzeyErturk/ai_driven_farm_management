@@ -51,10 +51,9 @@
 \begin{titlepage}
 \centering
 \vspace*{2cm}
-{\LARGE\bfseries AI-Driven Crop Yield Prediction System:\\
-Cross-Country Transfer Learning for UK Agriculture\par}
+{\LARGE\bfseries AI-Driven Crop Yield Prediction System\par}
 \vspace{1.5cm}
-{\Large Final Year Dissertation\par}
+{\Large Dissertation \par}
 \vspace{1cm}
 {\large Kuzey Erturk\\
 Student ID: F330035\par}
@@ -89,13 +88,13 @@ The pooled anomaly approach substantially improved prediction accuracy: wheat \r
 
 \section{Background and Motivation}
 
-Agricultural productivity faces increasing challenges from climate variability and environmental uncertainty. The growing global population, projected to reach 9.7 billion by 2050 \citep{un2019}, and rising food demand require efficient farming practices to manage limited natural resources sustainably. Climate change has intensified extreme weather events such as droughts, floods, and unseasonal temperatures, creating greater uncertainty in crop production cycles \citep{ipcc2021}.
+Agricultural productivity faces increasing challenges from climate change, climate variability, and environmental uncertainty. The growing global population,projected to reach 9.7 billion by 2050 \citep{un2019}, and rising food demand necessitate efficient farming practices to manage limited natural resources sustainably. Climate change has intensified extreme weather events such as droughts, floods, and unseasonal temperatures, creating greater uncertainty in crop production cycles \citep{ipcc2021}. Accurate yield prediction tools are essential to mitigating these uncertainties, enabling proactive planning rather than reactive response.
 
-In the UK, agriculture contributes approximately \pounds10 billion annually to the economy, with cereals covering over 3 million hectares of farmland \citep{defra2023}. Wheat alone accounts for approximately 1.8 million hectares, producing around 14 million tonnes annually \citep{ahdb2023a}. Weather variability significantly impacts yields---the wet summer of 2012 caused wheat yields to drop nearly 19\% below average, from 7.8~\tha{} to 6.3~\tha{} \citep{defra2012}, demonstrating how vulnerable UK agriculture is to climatic extremes.
+In the UK, agriculture contributes approximately \pounds10 billion annually to the economy, with cereals and oilseed crops, principally wheat, barley, oats, and oilseed rape in which they cover over 3 million hectares of farmland \citep{defra2023}. Wheat alone accounts for approximately 1.8 million hectares, producing around 14 million tonnes annually \citep{ahdb2023a}. Weather variability significantly impacts yields, for example the wet summer of 2012 caused wheat yields to drop nearly 19\% below average, from 7.8~\tha{} to 6.3~\tha{} \citep{defra2012}. This clearly demonstrates how vulnerable UK agriculture is to climatic extremes.
 
 Accurate crop yield prediction enables farmers to optimise resource allocation, plan harvests, and mitigate financial risks. Traditional forecasting methods rely on simple statistical approaches or farmer intuition, which often fail to capture the complex, non-linear interactions between environmental factors and crop performance \citep{vanklompenburg2020}. Machine learning offers the potential to model these relationships by learning from historical patterns in weather and yield data, with studies showing improvements of 10--30\% over traditional regression methods \citep{chlingaryan2018}.
 
-However, a fundamental challenge for UK crop yield prediction is \textbf{data scarcity}. With only four administrative regions (England, Wales, Scotland, Northern Ireland) reporting annual yields over approximately 20~years, each crop has fewer than 84~data points for training---far below the requirements of most machine learning approaches \citep{corcoran2023}. This project addresses this challenge by developing a cross-country data augmentation strategy that pools yield--weather data from climatically similar European countries, effectively multiplying the available training data.
+However, a fundamental challenge for UK crop yield prediction is \textbf{data scarcity}. With only four administrative regions (England, Wales, Scotland, Northern Ireland) reporting annual yields over approximately 20~years, each crop has fewer than 84~data points for training which is below the usual recommendations of most machine learning approaches \citep{corcoran2023}. This project addresses this challenge by developing a cross-country data augmentation strategy that pools yield--weather data from climatically similar European countries, effectively multiplying the available training data.
 
 \section{Research Questions and Objectives}
 
@@ -103,7 +102,7 @@ This project addresses three research questions:
 
 \begin{enumerate}
     \item \textbf{RQ1:} Can machine learning models predict UK crop yields from weather data alone, and which weather features are most important for each crop?
-    \item \textbf{RQ2:} Can cross-country data pooling from climatically similar European countries improve UK crop yield predictions, and under what conditions does transfer succeed or fail?
+    \item \textbf{RQ2:} Can data pooling from climatically similar European countries improve UK crop yield predictions, and under what conditions does transfer succeed or fail?
     \item \textbf{RQ3:} Are weather--yield response curves transferable between countries, and can models trained on foreign data predict UK yields?
 \end{enumerate}
 
@@ -111,9 +110,9 @@ The corresponding objectives are:
 
 \begin{enumerate}
     \item Compile and integrate multi-source agricultural datasets covering UK yield data (DEFRA), UK weather data (Met Office), European yield data (Eurostat), and European weather data (E-OBS gridded observations).
-    \item Engineer 47~weather features capturing seasonal patterns aligned with crop growth stages.
+    \item Engineer weather features capturing seasonal patterns aligned with crop growth stages.
     \item Develop and compare machine learning models including Ridge regression, Random Forest, and SVR for five UK crops.
-    \item Implement a cross-country data pooling pipeline spanning seven European countries.
+    \item Implement a cross-country data pooling pipeline including seven European countries.
     \item Develop and evaluate a detrended anomaly transfer methodology that enables meaningful cross-country yield data combination.
     \item Investigate whether scenario-adaptive source country selection can improve upon static pooling.
     \item Deploy the best models in an interactive web application demonstrating practical applicability.
@@ -121,7 +120,7 @@ The corresponding objectives are:
 
 \section{Project Scope}
 
-This project focuses on five major UK crops: wheat, winter barley, spring barley, oats, and oilseed rape (OSR). The UK analysis covers the period 2004--2024 using regional yield data from DEFRA \citep{defra2024} and weather data from the UK Met Office \citep{metoffice2024}. Cross-country data spans 2004--2018 (the common overlap period) across seven countries: UK, France, Germany, Ireland, the Netherlands, Belgium, and Denmark. The prediction models use weather-based features only, excluding economic factors (e.g., fertiliser prices) and detailed soil data due to data availability constraints.
+This project focuses on five major UK crops: wheat, winter barley, spring barley, oats, and oilseed rape (OSR). The UK analysis covers the period 2004--2024 using regional yield data from DEFRA \citep{defra2024} and weather data from the UK Met Office \citep{metoffice2024}. Cross-country data spans 2004--2018 (the common overlap period) across seven countries, though French data goes back to 1995: UK, France, Germany, Ireland, the Netherlands, Belgium, and Denmark. The prediction models use weather-based features only, excluding economic factors (e.g., fertiliser prices) and detailed soil data due to data availability constraints.
 
 \section{Report Structure}
 
@@ -135,9 +134,9 @@ Chapter~2 reviews the relevant literature on crop yield prediction, weather--yie
 
 \section{Crop Yield Prediction Methods}
 
-Crop yield prediction has progressed from simple agronomic rules and statistical regression to sophisticated machine learning approaches. \citet{vanklompenburg2020} conducted a systematic review of 50~studies using ML for crop yield prediction, identifying Random Forest, neural networks, and support vector machines as the most commonly used algorithms. They found that most studies report improvements over traditional regression baselines, but noted that many studies use large-scale national or continental datasets---a luxury not available for UK regional prediction.
+Driven by the increasing climate uncertainty globally, the field of crop yield prediction has evolved rapidly; what were once simple statistical calculations have been replaced by advanced computational models capable of capturing the complex, non-linear interactions of modern agriculture. \citet{vanklompenburg2020} conducted a systematic review of 50~studies using ML for crop yield prediction, identifying Random Forest, neural networks, and support vector machines as the most commonly used algorithms. They found that most studies report improvements over traditional regression baselines, but noted that many studies use large-scale national or continental datasets.
 
-\citet{paudel2022} evaluated ML methods (Ridge, KNN, SVR, GBDT) for crop yield forecasting across European countries, achieving a median normalised RMSE of 16.57\%. Their approach pooled subnational regions within each country---the same rationale underlying our cross-country pooling, but applied at a different geographic scale. Notably, they acknowledged that model performance degrades for extreme weather years, a challenge we address through our anomaly-based approach.
+\citet{paudel2021} evaluated ML methods (Ridge, KNN, SVR, GBDT) for crop yield forecasting across European countries, achieving a median normalised RMSE of 16.57\%. Their approach pooled subnational regions within each country, having a huge influence on the rationale underlying our cross-country pooling, but applied at a different geographic scale. They acknowledged that model performance degrades for extreme weather years, a challenge we address through our anomaly-based approach.
 
 \citet{jeong2016} demonstrated that Random Forest models can effectively predict global crop yields using gridded climate data, achieving \rsq{} values of 0.51--0.75 for wheat. Their work established Random Forest as a strong baseline for tabular agricultural data, motivating our initial model selection.
 
@@ -145,7 +144,7 @@ Crop yield prediction has progressed from simple agronomic rules and statistical
 
 Understanding which weather variables drive yield variation is central to prediction modelling. \citet{gammans2017} used 65~years of French department-level yield data with panel regression, finding that temperatures above 32\degrees{} reduce wheat yields by 2.9\% per day and that spring barley is the most heat-sensitive cereal ($-4.6$\% at 32\degrees{}+). They identified optimal precipitation at 200--236\,mm during the spring--summer growing season. Crucially, they used the same E-OBS gridded weather data and French departmental structure as our study, providing direct methodological precedent.
 
-\citet{moore2015} conducted the first formal attribution of long-term yield trends to climate change in European agriculture, using panel data across 349~subnational regions in 11~countries including the UK. They detected a statistically significant ``climate fingerprint'' on all four crops studied: wheat yields were 2.5\% lower and barley 3.8\% lower than they would have been without post-1989 warming. Their use of detrended yield and weather data with country fixed effects is directly analogous to our detrending and country-indicator approaches.
+\citet{moore2015} conducted the first formal attribution of long-term yield trends to climate change in European agriculture, using data across 349~subnational regions in 11~countries including the UK. They detected a statistically significant ``climate fingerprint'' on all four crops studied: wheat yields were 2.5\% lower and barley 3.8\% lower than they would have been without post-1989 warming. Their method of using detrended data to isolate anomalies caused by weather, while accounting for country-level differences, is relatively similar to the detrending and country-indicator approach we developed in the latter stages of this project.
 
 \citet{zhu2021} applied Random Forest with SHAP (SHapley Additive exPlanations) analysis to attribute European wheat yield shocks across 1,435~subnational units, finding that heat stress has become the primary driver of yield loss in the 2000--2018 period (superseding water stress, which dominated 1980--1999). Their use of SHAP for interpretable feature importance motivates our own SHAP analysis.
 
@@ -153,34 +152,42 @@ Understanding which weather variables drive yield variation is central to predic
 
 \section{Cross-Country Transfer and Data Augmentation}
 
-A critical challenge in regional crop yield prediction is data scarcity. \citet{corcoran2023} explicitly identified data bottlenecks for UK crop yield analysis, noting that non-wheat crops are especially data-poor. This directly motivates our cross-country pooling approach as a data augmentation strategy.
+A critical challenge in regional crop yield prediction is data scarcity. \citet{corcoran2023} explicitly identified data bottlenecks for UK crop yield analysis, specifically noting the lack of openly accessible crop management and crop plant data across the UK, particularly for non-wheat crops. This directly motivates our cross-country pooling approach as a data augmentation strategy.
 
-The scientific justification for pooling data across European countries rests on the concept of climate analogues. \citet{pugh2016} used climate analogue matching to assess future crop productivity, finding that suitable growing areas shift geographically under climate change rather than disappearing entirely. We extend this concept from descriptive analysis to predictive data augmentation.
+The scientific justification for pooling data across European countries rests on the concept of climate similarities. \citet{pugh2016} used climate analogue matching to assess future crop productivity, finding that suitable growing areas shift geographically under climate change rather than disappearing entirely. We extend this concept from descriptive analysis to predictive data augmentation.
 
 Most critically, \citet{ceglar2019} demonstrated that agro-climate zones in Europe are migrating northward at 70--100~km per decade, with the southern maritime zone (currently characterising France) projected to replace the northern maritime zone (currently characterising the UK) under 2\degrees{} of warming. This provides a direct scientific basis for pooling French and UK crop data: France's current weather--yield patterns preview the UK's near-future conditions.
 
 \citet{ronchetti2024} developed a harmonised dataset of 344,282~subnational crop statistics across 27~EU countries, demonstrating the feasibility and value of cross-country agricultural data integration. Their work shows that our manual pipeline for 7~countries could, in principle, be extended to continental scale.
 
-\citet{riedesel2024} studied site-specific heat and drought impacts on German wheat, finding that site conditions cause 2--3$\times$ variation in stress-related yield losses. This helps explain why German data transfers poorly to UK conditions---the continental climate introduces response differences that cannot be overcome by simple pooling.
+\citet{riedesel2024} studied site-specific heat and drought impacts on German wheat, finding that site conditions cause 2--3$\times$ variation in stress-related yield losses. This helps explain why German data transfers poorly to UK conditions. The continental climate introduces response differences that cannot be overcome by simple pooling.
 
 \section{Transfer Learning and Domain Adaptation}
 
-The concept of training on one domain and predicting in another is well-established in machine learning as transfer learning \citep{pan2010}. In agricultural contexts, this manifests as training on data-rich countries and predicting in data-poor ones. However, direct transfer faces fundamental challenges: different cultivars, soil types, farming practices, and climate baselines between countries mean that a model trained on absolute yields from one country will systematically mispredict another.
+The concept of training on one domain and predicting in another is well-established in machine learning as transfer learning or domain adaptation \citep{pan2010}. In agricultural contexts, this manifests as training on data-rich countries and predicting in data-poor ones. However, direct transfer faces fundamental challenges: different cultivars, soil types, farming practices, and climate baselines between countries mean that a model trained on absolute yields from one country will probably mispredict another.
 
-\citet{dinh2022} addressed the methodological challenge of model validation with small datasets, proposing Leave-Two-Out cross-validation as a more robust alternative to Leave-One-Out for sample sizes below 100. Their work validates our use of LOOCV while cautioning about its tendency to favour model complexity---a concern we address through Ridge regularisation.
+\citet{dinh2022} addressed the methodological challenge of model validation with small datasets, proposing Leave-Two-Out cross-validation as a more robust alternative to Leave-One-Out for sample sizes below 100. Their work validates our use of LOOCV while cautioning about its tendency to favour model complexity which is a concern we address through Ridge regularisation.
 
-\citet{evans2025} provided a critical perspective on space-for-time substitution (SFTS)---the assumption that spatial variation in climate can substitute for temporal variation. They warned that SFTS can be ``misleading in magnitude and direction'' due to acclimation effects at different timescales. Our cross-country pooling is fundamentally a form of SFTS, and our negative direct transfer results are consistent with their concerns. However, our anomaly-based approach mitigates this by transferring response \emph{shapes} rather than absolute predictions.
+\citet{evans2025} provided a critical perspective on space-for-time substitution (SFTS). It is the assumption that spatial variation in climate can substitute for temporal variation. They warned that SFTS can be ``misleading in magnitude and direction'' due to acclimation effects at different timescales. Our cross-country pooling is fundamentally a form of SFTS, and our negative direct transfer results are consistent with their concerns. However, our anomaly-based approach mitigates this by transferring the \emph{direction and relative pattern} of weather–yield responses (e.g., that above-normal 
+  summer temperatures reduce yields) rather than absolute predictions of yield levels.
 
 \section{Gap Analysis}
 
 The literature reveals several gaps that this project addresses:
 
-\begin{enumerate}
-    \item \textbf{UK-specific data scarcity:} Most European crop yield studies use countries with hundreds of subnational regions (France: 96~departments, Germany: 16~states). The UK's four regions create a data scarcity challenge that has not been specifically addressed through cross-country augmentation.
-    \item \textbf{Cross-country pooling methodology:} While subnational pooling within countries is common \citep{paudel2022}, cross-country pooling for crop yield prediction is not well-explored, and the conditions under which it succeeds or fails are poorly characterised.
-    \item \textbf{Anomaly-based transfer:} The combination of yield detrending with weather z-score standardisation for enabling cross-country data pooling has not been systematically evaluated as a data augmentation strategy.
-    \item \textbf{Adaptive source selection:} Whether dynamically selecting source countries based on weather scenario similarity improves upon static pooling has not been investigated.
-\end{enumerate}
+\begin{enumerate}                                                                                                                                                  
+      \item \textbf{UK-specific data scarcity:} Most European crop yield studies use countries with hundreds of subnational regions (France: 96~departments, Germany:
+   16~states). The UK's four administrative regions create a severe data constraint that limits ML model performance, as identified by \citet{corcoran2023}, yet no  
+  study has attempted to resolve this through cross-country data augmentation.                                                                                       
+      \item \textbf{Cross-country pooling for yield prediction:} While subnational pooling within individual countries is established \citep{paudel2021}, pooling    
+  yield data \emph{across} countries for crop yield prediction has not been systematically explored. The conditions under which such transfer succeeds or fails, and
+   which countries make suitable data partners remain uncharacterised.
+      \item \textbf{Anomaly-based transfer methodology:} Yield detrending and weather z-score standardisation are individually well-established techniques, but their
+   combination as a strategy to enable cross-country data pooling has not been evaluated. This project proposes and tests this combination as a principled approach  
+  to removing the country-specific differences (yield levels, climate baselines) that cause na\"{\i}ve pooling to fail.
+      \item \textbf{Adaptive vs.\ static source selection:} Given that different countries have different climates, whether dynamically selecting source countries   
+  based on weather scenario similarity can improve upon static pooling has not been investigated.                                                                    
+  \end{enumerate}
 
 
 % ============================================================================
@@ -188,7 +195,7 @@ The literature reveals several gaps that this project addresses:
 % ============================================================================
 \chapter{Data and Methodology}
 
-This chapter describes the data sources, feature engineering pipeline, and experimental methodology. The work progressed through three phases: (1)~UK-only baseline models, (2)~cross-country data collection and initial pooling experiments, and (3)~the detrended anomaly transfer approach.
+This chapter describes the data sources, feature engineering pipeline, and the three-phase modelling approach used to progressively improve UK crop yield predictions: (1)~UK-only baseline models, (2)~cross-country data collection and initial pooling experiments, and (3)~the detrended domain adaptation approach.
 
 % --------------------------------------------------
 \section{UK Data Sources}
@@ -256,27 +263,27 @@ To address UK data scarcity, yield and weather data were collected for six addit
 Two yield data sources were used:
 
 \begin{itemize}
-    \item \textbf{France:} Department-level yields (1995--2018) from the Schauberger dataset \citep{schauberger2018}, aggregated to four macro-regions (Nord, Ouest, Est, Sud) using area-weighted averaging. This dataset provides longer historical depth than Eurostat.
+    \item \textbf{France:} Department-level yields (1995--2018) from the Schauberger dataset \citep{schauberger2018}, aggregated to four macro-regions corresponding to cardinal directions (Nord/North, Ouest/West, Est/East, Sud/South) using area-weighted averaging. This dataset provides longer historical depth than Eurostat.
     \item \textbf{Germany, Ireland, Netherlands, Belgium, Denmark:} National-level yields (2004--2018) from Eurostat's APRO\_CPNH1 database, using crop codes C1110 (soft wheat), C1310 (winter barley), C1320 (spring barley), C1410 (oats), and I1110 (rapeseed). Yields are in \tha{}, areas in thousands of hectares.
 \end{itemize}
 
 \subsection{European Weather Data}
 
-Weather data for all European countries was obtained from the E-OBS gridded dataset (version~31/32) \citep{cornes2018}, which provides daily temperature, precipitation, and radiation on a 0.1\degrees{} grid across Europe. The processing pipeline involved:
+Weather data for all European countries was obtained from the E-OBS gridded dataset \citep{cornes2018}, at 0.1\degrees{} resolution. While UK weather features were derived from Met Office regional averages, European features were computed from E-OBS daily fields (maximum and minimum temperature, precipitation, and solar radiation) using the same seasonal aggregation pipeline, ensuring cross-country comparability. The processing pipeline involved:
 
 \begin{enumerate}
-    \item Loading NetCDF files for daily Tmax, Tmin, precipitation, and radiation
+    \item Loading NetCDF files for daily maximum temperature, daily minimum temperature, precipitation, and solar radiation
     \item Creating spatial masks for each country/region using NUTS-3 boundaries from GADM
     \item Computing area-weighted regional averages using the spatial masks
     \item Aggregating daily data to monthly summaries
     \item Computing 47 seasonal weather features using the same pipeline as UK data
 \end{enumerate}
 
-For France, four macro-regions were defined by aggregating departments. For Germany, four regions (Nord, West, Ost, S\"{u}d) were created. Ireland, the Netherlands, Belgium, and Denmark were treated as single national regions due to their smaller geographic size.
+For France, four macro-regions were defined by aggregating departments. For Germany, four regions (Nord/North, West, Ost/East, S\"{u}d/South) were created. Ireland, the Netherlands, Belgium, and Denmark were treated as single national regions due to their smaller geographic size.
 
 \begin{table}[H]
 \centering
-\caption{Cross-country data summary. Common overlap period: 2004--2018.}
+\caption{Cross-country data summary. Common overlap period: 2004--2018. UK years end at 2016 as cross-country experiments used the 2004--2016 subset; UK-only models use the full 2004--2024 range (Section~\ref{sec:uk_only_models}).}
 \label{tab:cross_country_data}
 \begin{tabular}{llccc}
 \toprule
@@ -300,27 +307,18 @@ Denmark & Eurostat & 1 & 2004--2016 & 13 \\
 \label{sec:feature_engineering}
 % --------------------------------------------------
 
-Raw monthly weather data was transformed into 47~seasonal features aligned with crop growth stages. This is critical because crops respond to weather during specific phenological windows, not uniformly throughout the year \citep{zhao2019}.
+Raw monthly weather data was transformed into 47~seasonal features aligned with crop growth stages. This is critical because crops respond to weather during specific phenological windows, not uniformly throughout the year \citep{zhao2017}.
 
 \subsection{Seasonal Framework}
 
-Weather variables were aggregated into four seasons matching UK crop growth cycles:
+Weather variables were aggregated into four seasons aligned with UK crop growth cycles:
 
-\begin{table}[H]
-\centering
-\caption{Seasonal definitions and crop growth stage relevance}
-\label{tab:seasons}
-\begin{tabular}{lll}
-\toprule
-\textbf{Season} & \textbf{Months} & \textbf{Crop Growth Stage} \\
-\midrule
-Winter & Dec--Feb & Vernalisation, dormancy \\
-Spring & Mar--May & Tillering, stem extension, emergence \\
-Summer & Jun--Aug & Flowering, grain filling, harvest \\
-Autumn & Sep--Nov & Planting, establishment (winter crops) \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{description}[style=nextline]
+    \item[Autumn (Sep--Nov)] Sowing and emergence for winter cereals; OSR rosette establishment.
+    \item[Winter (Dec--Feb)] Vernalisation and dormancy for winter crops.
+    \item[Spring (Mar--May)] Stem extension for winter crops; sowing and emergence for spring barley and oats; OSR flowering.
+    \item[Summer (Jun--Aug)] Flowering, grain filling, and harvest for most cereals; OSR pod fill and harvest (July).
+\end{description}
 
 \subsection{Feature Categories}
 
@@ -394,7 +392,7 @@ Crop-specific model selection identified: Random Forest for Wheat, Winter Barley
 \toprule
 \textbf{Crop} & \textbf{Algorithm} & \textbf{Key Features} \\
 \midrule
-Wheat & Random Forest & Winter Sun, Summer Sun, Extreme Summer Rain, Grain Filling Rain \\
+Wheat & Random Forest & Winter Sun, Summer Sun, Summer Rain, Grain Filling Rain \\
 Winter Barley & Random Forest & Spring Tmax, Winter Sun, Planting Rain, Winter Frost \\
 Spring Barley & Ridge & Spring Rain, Spring Tmax, Summer Sun \\
 Oats & Random Forest & Spring Rain, Rain Deviation Optimal, Flowering Sun \\
@@ -470,33 +468,31 @@ Models performed well for the 2010 cold winter (all errors $< 0.30$~\tha{}), dem
 
 \subsection{Motivation}
 
-The UK-only models achieved moderate performance but were fundamentally constrained by sample size: 52~observations per crop (4~regions $\times$ 13~years in the common evaluation period). France alone contributes 60~additional observations (4~regions $\times$ 15~years), and the full 7-country pool provides approximately 224~observations per crop---a 4$\times$ increase.
+The UK-only models demonstrated that weather data alone can predict crop yields, but their accuracy was fundamentally limited by the small amount of UK training data available---just 52~observations per crop (4~regions $\times$ 13~years in the common evaluation period). To overcome this, we investigated whether adding data from climatically similar European countries could improve UK predictions, effectively using other countries' weather--yield experience to compensate for the UK's data scarcity. France alone contributes 60~additional observations (4~regions $\times$ 15~years), and the full 7-country pool provides approximately 224~observations per crop---a 4$\times$ increase.
 
 The scientific justification for cross-country pooling rests on the observation that agro-climate zones are migrating northward across Europe \citep{ceglar2019}. France's current southern maritime climate zone is projected to replace the UK's northern maritime zone under 2\degrees{} of warming. This means French weather--yield patterns today may preview UK conditions in the coming decades, making French data a legitimate augmentation source.
 
-\subsection{Five Pooling Experiments}
+\subsection{Pooling Experiments}
 
-Five experiments were conducted to systematically evaluate cross-country data combination:
+Before pooling, yield distributions and weather patterns across UK, France, and Germany were compared to identify baseline differences, and LOOCV on each country separately established per-country performance benchmarks. Three pooling experiments were then conducted:
 
 \begin{enumerate}
-    \item \textbf{Descriptive comparison:} Yield distributions and weather patterns across UK, France, and Germany were compared to identify baseline differences.
-    \item \textbf{Direct transfer test:} Models trained on one country were applied to predict another's yields, with all pairs producing negative \rsq{} values, confirming that na\"{\i}ve transfer fails.
-    \item \textbf{Country-only baselines:} LOOCV on each country separately established per-country performance benchmarks.
-    \item \textbf{Pooled models:} Data from all countries were combined, with and without binary country indicator features ($\text{Is\_France}$, $\text{Is\_Germany}$), using both crop-specific algorithms and a uniform Ridge regression with all 47~features.
-    \item \textbf{Feature importance comparison:} Which weather features drive yield variation in each country, revealing both shared sensitivities and country-specific patterns.
+    \item \textbf{Direct transfer:} Models trained entirely on one country's data were applied to predict another's yields. All country pairs produced negative \rsq{} values, confirming that na\"{\i}ve cross-country transfer fails without addressing baseline differences.
+    \item \textbf{Pooled models with country indicators:} Data from all countries were combined with binary country indicator features ($\text{Is\_France}$, $\text{Is\_Germany}$), tested using both crop-specific algorithms and a uniform Ridge regression with all 47~features.
+    \item \textbf{Cross-country feature importance:} SHAP analysis compared which weather features drive yield variation in each country, revealing shared sensitivities (e.g., summer temperature) and country-specific patterns (e.g., winter sunshine matters most for the UK).
 \end{enumerate}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{france_uk_yield_comparison.png}
-\caption{Yield comparison between UK and France across all five crops. France generally has lower and more variable yields, with different regional patterns reflecting the continental gradient from Nord (maritime) to Sud (Mediterranean).}
+\caption{Yield distributions by country (2004--2016) for all five crops. Absolute yield levels differ substantially between countries---for example, UK leads in winter barley and oats while Germany leads in wheat and OSR. This illlustrates why direct cross-country transfer without accounting for these baseline differences fails.}
 \label{fig:france_uk_yield}
 \end{figure}
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{france_uk_weather_comparison.png}
-\caption{Weather variable comparison between UK and France. France has higher temperatures, lower rainfall, and more sunshine---the climate baseline differences that must be addressed for meaningful data pooling.}
+\caption{Weather comparison by country (2004--2016). The UK is wetter and cooler, France is warmer with more sunshine, and Germany has the most winter frost days, concluding that climate baseline differences that must be addressed for meaningful data pooling.}
 \label{fig:france_uk_weather}
 \end{figure}
 
@@ -510,7 +506,7 @@ A critical finding from the pooling experiments was that \textbf{Ridge regressio
 \label{tab:pooling_results}
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Crop} & \textbf{UK-only} & \textbf{UK Ridge47} & \textbf{Pooled+Country (original)} & \textbf{Pooled+Country (Ridge47)} \\
+\textbf{Crop} & \textbf{UK-only} & \textbf{UK (Ridge)} & \textbf{Pooled (original)} & \textbf{Pooled (Ridge)} \\
 \midrule
 Wheat & 0.355 & 0.402 & 0.361 & 0.501 \\
 Winter Barley & 0.238 & 0.343 & 0.258 & 0.456 \\
@@ -551,23 +547,23 @@ where $u_j \sim \mathcal{N}(0, \sigma_u^2)$ is the random intercept for country~
 
 \subsection{Method 3: Mixed-Effects Models (Random Slopes)}
 
-Extended the mixed-effects model to allow country-specific weather response slopes for five key variables (Summer Tmax, Spring Rain, Summer Rain, Grain Filling Temp, Summer GDD):
+Extended the mixed-effects model to allow country-specific weather response slopes. Five candidate variables were considered for random slopes (Summer Tmax, Spring Rain, Summer Rain, Grain Filling Temp, Summer GDD), with up to three used per crop depending on which survived feature selection:
 \begin{equation}
     Y_{ij} = \mathbf{x}_{ij}^T \boldsymbol{\beta} + u_{0j} + \sum_{k \in K} u_{kj} x_{kij} + \varepsilon_{ij}
 \end{equation}
-This was the best method for Winter Barley (\rsq{} = 0.698) and OSR (\rsq{} = 0.613), as these crops have country-specific weather sensitivities that benefit from varying slopes. Feature selection required limiting to $\leq 10$ decorrelated features (greedy selection removing $|r| > 0.85$ pairs) for numerical stability.
+This was the best method for Winter Barley (\rsq{} = 0.698) and OSR (\rsq{} = 0.613), as these crops have country-specific weather sensitivities that benefit from varying slopes. 
 
 \subsection{Method 4: Bias Correction}
 
-Country-specific yield biases were estimated and removed before training: for each country $j$, the mean yield residual $\bar{e}_j$ from a baseline model was subtracted. This achieved the best \textbf{direct transfer} result of \rsq{} = $-3.026$---still negative, but a massive improvement from $-32$ without any correction.
+Country-specific yield baselines were estimated as the per-country mean yield $\bar{Y}_j$ and subtracted before training. At prediction time, the target country's baseline is added back to produce the final prediction. This achieved the best \textbf{direct transfer} result of \rsq{} = $-3.026$---still negative, but a massive improvement from $-32$ without any correction.
 
 \subsection{Method 5: CORAL Domain Adaptation}
 
-CORAL (CORrelation ALignment) aligns the second-order statistics (covariance) of source and target feature distributions. The source features are transformed by:
+CORAL (CORrelation ALignment) aligns the second-order statistics (covariance) of source and target feature distributions. The source features are mean-centred, transformed to match the target covariance structure, and re-centred to the target mean:
 \begin{equation}
-    \hat{\mathbf{X}}_S = \mathbf{X}_S \mathbf{C}_S^{-1/2} \mathbf{C}_T^{1/2}
+    \hat{\mathbf{X}}_S = (\mathbf{X}_S - \bar{\mathbf{X}}_S) \mathbf{C}_S^{-1/2} \mathbf{C}_T^{1/2} + \bar{\mathbf{X}}_T
 \end{equation}
-where $\mathbf{C}_S$ and $\mathbf{C}_T$ are source and target covariance matrices. This achieved pooled \rsq{} = 0.488 but was unstable with small country samples.
+where $\mathbf{C}_S$ and $\mathbf{C}_T$ are source and target covariance matrices, and $\bar{\mathbf{X}}_S$, $\bar{\mathbf{X}}_T$ are the respective feature means. This achieved pooled \rsq{} = 0.488 but was unstable with small country samples.
 
 \subsection{Domain Adaptation Summary}
 
@@ -578,14 +574,14 @@ where $\mathbf{C}_S$ and $\mathbf{C}_T$ are source and target covariance matrice
 \label{fig:domain_adaptation}
 \end{figure}
 
-The key conclusion from Phase~2 was that classical domain adaptation methods could improve pooled prediction but could not achieve positive direct transfer. The fundamental barrier was different yield levels and climate baselines between countries---problems that required a different approach.
+The key conclusion from Phase~2 was that classical domain adaptation methods could improve pooled prediction but could not achieve positive direct transfer. The fundamental barrier was that countries differ in both absolute yield levels (driven by local soil, varieties, and farming practices) and climate baselines (e.g., France is warmer and drier than the UK). These differences are not learnable weather--yield patterns but rather structural country-level characteristics that no amount of model tuning can overcome. This realisation motivated a shift in approach: rather than trying to model absolute yields across countries, we needed a method that strips away these country-specific baselines and focuses solely on how \emph{deviations} from normal weather affect \emph{deviations} from expected yield.
 
 % --------------------------------------------------
 \section{Phase 3: Detrended Anomaly Transfer}
 \label{sec:anomaly_transfer}
 % --------------------------------------------------
 
-The detrended anomaly transfer methodology was developed to overcome the two barriers identified in Phase~2: (1)~different absolute yield levels between countries, and (2)~different climate baselines. The core insight is to \textbf{transfer weather response shapes rather than absolute predictions}.
+The detrended anomaly transfer methodology was developed to overcome the two barriers identified in Phase~2: (1)~different absolute yield levels between countries, and (2)~different climate baselines. The core insight is to \textbf{transfer the direction and relative pattern of weather--yield responses} (e.g., that above-normal summer heat reduces yields) rather than absolute predictions. The pipeline proceeds in four steps: (1)~detrend yields to isolate weather-driven anomalies, (2)~standardise weather features to per-region z-scores, (3)~pool the anomaly data across countries and train a Ridge model, and (4)~reconstruct full yield predictions by adding the predicted anomaly back to the UK's own yield trend.
 
 \subsection{Step 1: Yield Detrending}
 
@@ -656,12 +652,12 @@ With both yield anomalies and weather z-scores computed, the data from multiple 
 
 \noindent i.e., ``when weather is $k$ standard deviations above normal, yield deviates by $\delta$~\tha{} from trend.'' These weather--yield response curves should be \textbf{universal across countries growing the same crop}: wheat everywhere suffers from heat stress and benefits from adequate spring rainfall. The magnitude might differ slightly between countries, but the direction and shape of the responses should transfer.
 
-Ridge regression was used for all crops:
+Before training, the pooled z-score features are passed through a \texttt{StandardScaler} to ensure zero mean and unit variance across the combined dataset (since pooling regions from different countries can shift the aggregate distribution). Ridge regression was then used for all crops:
 \begin{equation}
     \hat{\boldsymbol{\beta}} = \arg\min_{\boldsymbol{\beta}} \left( \|\mathbf{y}_{\text{anomaly}} - \mathbf{Z}\boldsymbol{\beta}\|_2^2 + \alpha\|\boldsymbol{\beta}\|_2^2 \right)
 \end{equation}
 
-where $\mathbf{Z}$ is the matrix of standardised weather z-scores and $\alpha$ was tuned per crop ($\alpha \in \{1, 10, 100\}$) via LOOCV.
+where $\mathbf{Z}$ is the matrix of standardised weather z-scores and $\alpha$ was tuned per crop ($\alpha \in \{0.1, 1, 10, 100\}$) via LOOCV.
 
 \subsection{Step 4: Reconstruct Full Predictions}
 
@@ -671,17 +667,17 @@ To produce a final yield prediction for a UK region-year, the predicted anomaly 
     \hat{Y}_{it} = \hat{Y}_{\text{anomaly},it} + \hat{Y}_{\text{trend},it}
 \end{equation}
 
-This decomposition is the key: the \textbf{yield trend} (technology, varieties, management) comes from UK's own data (just a simple linear fit requiring minimal data), while the \textbf{yield anomaly} (weather response) comes from the pooled cross-country model with far more training data.
+This decomposition is the key: the \textbf{yield trend} (technology, varieties, management) comes from UK's own data (just a simple linear fit requiring minimal data), while the \textbf{yield anomaly} (weather response) comes from the pooled cross-country model with far more training data. Note that the UK-only baseline models (Section~\ref{sec:uk_only_models}) predict raw yields directly without detrending; when comparing \rsq{} values, the pooled anomaly results refer to reconstructed full yields to ensure comparability.
 
 \subsection{Rescaled Direct Transfer}
 
-Beyond pooled prediction, we tested whether a model trained \emph{exclusively} on French anomaly data could predict UK yield anomalies---true cross-country transfer. The France-trained model captures the correct \emph{direction} of weather effects but not necessarily the correct \emph{magnitude} (France's yield variability differs from the UK's). A simple linear calibration was applied via LOOCV on UK data:
+Beyond pooled prediction, we tested whether a model trained \emph{exclusively} on French anomaly data could predict UK yield anomalies. This would show us if true cross-country transfer works. The France-trained model captures the correct \emph{direction} of weather effects but not necessarily the correct \emph{magnitude} (France's yield variability differs from the UK's). A simple linear calibration was applied via LOOCV on UK data:
 
 \begin{equation}
     \hat{Y}_{\text{anomaly,UK}}^{\text{calibrated}} = a \cdot \hat{Y}_{\text{anomaly,UK}}^{\text{raw}} + b
 \end{equation}
 
-where $a$ (scale) and $b$ (shift) are estimated from held-out UK observations. Crucially, this only uses UK data for two calibration parameters, \emph{not} for learning weather--yield relationships. The weather response shapes come entirely from France.
+where $a$ (scale) and $b$ (shift) are estimated from held-out UK observations. Crucially, this only uses UK data for two calibration parameters, \emph{not} for learning weather--yield relationships. The weather--yield relationships come entirely from France.
 
 % --------------------------------------------------
 \section{Phase 3b: Scenario-Adaptive Source Country Selection}
@@ -709,7 +705,7 @@ Additionally, a \textbf{static ablation} study was conducted: evaluating all pos
 To provide interpretable explanations of model predictions, SHAP (SHapley Additive exPlanations) analysis was conducted in three parts:
 
 \begin{enumerate}
-    \item \textbf{UK-only models:} SHAP values computed for the crop-specific algorithms (RF for Wheat/Winter Barley/Oats, Ridge for Spring Barley, SVR for OSR) to identify which weather features drive each crop's predictions.
+    \item \textbf{UK-only models:} SHAP values computed for the crop-specific algorithms (\textbf{Random Forest} for Wheat/Winter Barley/Oats, \textbf{Ridge} for Spring Barley, \textbf{SVR} for OSR) to identify which weather features drive each crop's predictions.
     \item \textbf{Pooled cross-country models:} SHAP values for Ridge models trained on pooled France+UK+Germany data with country indicators, revealing both weather and country-level effects.
     \item \textbf{Cross-country comparison:} SHAP importance compared between UK, France, and Germany observations, showing which weather features matter differently across countries.
 \end{enumerate}
@@ -743,17 +739,17 @@ The application includes three pages: a prediction form with dynamic weather sli
 
 \begin{table}[H]
 \centering
-\caption{UK-only model performance on test set (2020--2024)}
+\caption{UK-only model performance (LOOCV \rsq{} and test set RMSE, 2020--2024)}
 \label{tab:uk_only_results}
 \begin{tabular}{llccl}
 \toprule
-\textbf{Crop} & \textbf{Algorithm} & \rsq{} & \textbf{RMSE (\tha{})} & \textbf{Interpretation} \\
+\textbf{Crop} & \textbf{Algorithm} & \textbf{LOOCV \rsq{}} & \textbf{RMSE (\tha{})} & \textbf{Interpretation} \\
 \midrule
-Wheat & Random Forest & 0.50 & 0.60 & Good---50\% variance explained \\
-Winter Barley & Random Forest & 0.45 & 0.48 & Good---strong weather signal \\
-Spring Barley & Ridge & 0.22 & 0.71 & Moderate---high variability \\
-Oats & Random Forest & 0.20 & 0.61 & Moderate---hardy crop \\
-OSR & SVR (linear) & 0.15 & 0.52 & Low---pest-dominated \\
+Wheat & Random Forest & 0.355 & 0.60 & Moderate---strongest UK signal \\
+Winter Barley & Random Forest & 0.236 & 0.49 & Moderate---weather-driven \\
+Spring Barley & Ridge & 0.221 & 0.70 & Weak---high variability \\
+Oats & Random Forest & 0.247 & 0.61 & Weak---hardy crop \\
+OSR & SVR (linear) & 0.196 & 0.53 & Weak---pest-dominated \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -778,7 +774,7 @@ OSR & SVR (linear) & 0.15 & 0.52 & Low---pest-dominated \\
     \item \textbf{Winter sunshine predicts wheat yield} ($r = 0.49$ in England): An overlooked factor---winter light affects early crop establishment and tillering.
     \item \textbf{Spring/winter barley require separate models}: The 27\% yield difference and different growth cycles mean aggregated modelling fails completely (\rsq{} = $-0.16$).
     \item \textbf{OSR is pest-dominated, not weather-dominated}: Only 15\% of variance explained by weather suggests cabbage stem flea beetle and other pests are primary yield drivers \citep{ahdb2023c}.
-    \item \textbf{High winter frost correlates with better yields}: Counter-intuitively, cold winters improve yields across all crops ($+0.15$ to $+0.35$~\tha{} for high vs.\ low frost years), likely through vernalisation requirements and reduced pest/disease pressure \citep{zheng2015}.
+    \item \textbf{High winter frost correlates with better yields}: Counter-intuitively, cold winters improve yields across all crops ($+0.15$ to $+0.35$~\tha{} for high vs.\ low frost years), likely through vernalisation requirements and reduced pest/disease pressure \citep{zheng2012}.
 \end{enumerate}
 
 % --------------------------------------------------
@@ -838,7 +834,7 @@ The detrended anomaly approach produced the strongest results of the project (Ta
 
 \begin{table}[H]
 \centering
-\caption{Pooled anomaly transfer results (LOOCV \rsq{} on UK observations). The improvement column shows the absolute \rsq{} increase over UK-only LOOCV baselines.}
+\caption{Pooled anomaly transfer results (LOOCV \rsq{} on UK observations). The improvement column shows the absolute \rsq{} increase over UK-only LOOCV baselines. UK-only baselines use the crop-specific models from Phase~1 (Table~\ref{tab:uk_only_results}).}
 \label{tab:anomaly_results}
 \begin{tabular}{lccccc}
 \toprule
@@ -876,9 +872,9 @@ OSR & $-34.22$ & \textbf{0.136} & 0.41 & Linear \\
 \end{tabular}
 \end{table}
 
-The raw correlation column is particularly informative: even without any calibration, the France-trained model's predictions correlate positively with actual UK anomalies ($r = 0.41$--$0.82$). This confirms that the \emph{directions} of weather effects are shared between countries---a hotter-than-normal summer hurts wheat yields in both France and the UK. The linear calibration (just 2~parameters) rescues the predictions from catastrophic negative \rsq{} to positive values, by correcting the magnitude mismatch.
+The raw correlation column is particularly informative: even without any calibration, the France-trained model's predictions correlate positively with actual UK anomalies ($r = 0.41$--$0.82$). This shows that weather affects yields the same way in both countries: a hotter-than-normal summer reduces wheat yields in France and the UK alike. What differs is the size of the effect, not its direction. Fitting just two parameters (a scale and an offset) on UK data is enough to correct this mismatch, turning predictions that were worse than the mean into ones with positive \rsq{}.
 
-Linear calibration consistently outperformed variance rescaling, suggesting that there is both a scale difference (French yield anomalies have different variance than UK anomalies) and a systematic bias in the transferred predictions.
+A simple linear fit worked better than rescaling the variance alone. This suggests two separate problems with the raw transferred predictions: French yield anomalies vary over a wider range than UK ones, and the predictions are also shifted by a constant bias. The linear calibration fixes both at once.
 
 \subsection{Extended History Does Not Help}
 
@@ -997,7 +993,7 @@ The final pooled anomaly models were deployed in a Flask web application with th
 
 \begin{table}[H]
 \centering
-\caption{Production model performance in the Flask application (LOOCV \rsq{}). These models use pooled France+UK anomaly data with Ridge regression and all 45 weather features.}
+\caption{Production model performance in the Flask application (LOOCV \rsq{}). These models use pooled France+UK anomaly data with Ridge regression. Of the 47~engineered weather features, 45 are retained after removing features with near-zero variance in the pooled dataset.}
 \label{tab:flask_models}
 \begin{tabular}{lcccc}
 \toprule
@@ -1032,9 +1028,9 @@ This project produced three main findings:
 
 \textbf{Finding 1: Detrending and anomalisation enable effective cross-country data pooling.} The combination of yield detrending (removing technology trends) and weather z-score standardisation (removing climate baselines) transforms the cross-country pooling problem from one that fails catastrophically (\rsq{} = $-32$) to one that produces strong results (\rsq{} up to 0.76). This is not a novel statistical technique---both detrending \citep{moore2015} and standardisation are well-established---but their systematic application as a data augmentation strategy for crop yield prediction addresses a practical gap identified by \citet{corcoran2023}.
 
-\textbf{Finding 2: Weather--yield response curves are transferable between countries.} The rescaled transfer results (Section~\ref{sec:anomaly_results}) demonstrate that a model trained exclusively on French anomaly data captures weather--yield relationships that are valid for the UK. The raw correlations between French model predictions and UK actual anomalies ($r = 0.41$--$0.82$) confirm that the \emph{direction} of weather effects is shared. This is consistent with the finding that wheat and barley share fundamental physiological responses to temperature and rainfall stress regardless of cultivar or location \citep{challinor2014}. The fact that a simple 2-parameter linear calibration rescues the predictions from \rsq{} $= -49$ to $+0.65$ shows that the main difference between countries is one of magnitude, not shape.
+\textbf{Finding 2: Weather--yield response curves are transferable between countries.} The rescaled transfer results (Section~\ref{sec:anomaly_results}) demonstrate that a model trained exclusively on French anomaly data captures weather--yield relationships that are valid for the UK. The raw correlations between French model predictions and UK actual anomalies ($r = 0.41$--$0.82$) confirm that the \emph{direction} of weather effects is shared. This is consistent with the finding that wheat and barley share fundamental physiological responses to temperature and rainfall stress regardless of cultivar or location \citep{challinor2014}. The fact that a simple 2-parameter linear calibration rescues the predictions from catastrophic negatives (worst case \rsq{} $\approx -49$) to positive values across all five crops (best \rsq{} $= 0.65$ for spring barley) shows that the main difference between countries is one of magnitude, not shape.
 
-\textbf{Finding 3: Static pooling is optimal; adaptive source selection does not help.} The z-score anomalisation already removes the climate baseline differences that would make dynamic country selection valuable. Once all countries' weather features express relative abnormality, there is no ``hot year $\to$ French data is more relevant'' effect left to exploit. This is a valuable negative result that confirms the anomalisation is doing its job comprehensively.
+\textbf{Finding 3: Static pooling is optimal; adaptive source selection does not help.} The z-score anomalisation already removes the climate baseline differences that would make dynamic country selection valuable. Once all countries' weather features express relative abnormality, there is no ``hot year $\to$ French data is more relevant'' effect left to exploit. In other words, the anomalisation step (Finding~1) does the work that scenario-adaptive source selection would otherwise need to do, which is why no adaptive scheme could improve on static pooling. This is a valuable negative result that confirms the anomalisation is doing its job comprehensively.
 
 \section{Why Anomaly Transfer Works}
 
@@ -1063,19 +1059,19 @@ This explanation is consistent with \citet{evans2025}'s finding that space-for-t
 
     \item \textbf{For data-scarce regions:} The methodology is applicable to any region with limited yield data but access to climatically similar neighbours. The key requirements are: (a)~yield data from at least one partner country growing the same crops, (b)~gridded weather data (E-OBS covers all of Europe), and (c)~detrending and z-scoring of both yield and weather data.
 
-    \item \textbf{For climate adaptation:} The transferability of weather response curves, combined with \citet{ceglar2019}'s finding that agro-climate zones are migrating northward, suggests that current French weather--yield patterns can inform UK agricultural planning for a warming climate.
+    \item \textbf{For climate adaptation:} The transferability of weather response curves, combined with \citet{ceglar2019}'s finding that agro-climate zones are migrating northward, suggests that current French weather--yield patterns may inform UK agricultural planning for a warming climate. This claim is qualified, however, by the non-stationarity concern raised in Limitation~5: the approach assumes the \emph{shape} of the response curve remains stable as the local climate baseline shifts, which is plausible but not guaranteed.
 \end{enumerate}
 
 \section{Limitations}
 
 \begin{enumerate}
-    \item \textbf{Small absolute sample sizes:} Even after pooling, the largest dataset (France+UK) has approximately 112~observations per crop. This limits the complexity of learnable patterns and makes LOOCV results sensitive to individual outlier years.
+    \item \textbf{Small absolute sample sizes:} Even after pooling, the largest dataset (France+UK) has on the order of 150--200 observations per crop. This limits the complexity of learnable patterns and makes LOOCV results sensitive to individual outlier years.
 
     \item \textbf{Linear assumptions:} Ridge regression assumes linear relationships between weather z-scores and yield anomalies. Non-linear effects (e.g., threshold responses to extreme heat) may be underestimated. However, non-linear models (Random Forest, SVR) performed worse in our experiments, likely due to overfitting on small samples.
 
     \item \textbf{Spatial aggregation:} UK data is aggregated to four broad regions, masking within-region variability. England's East Anglia (dry, continental-influenced) and South West (wet, maritime) have very different weather--yield dynamics that are averaged together.
 
-    \item \textbf{Missing non-weather factors:} Pest pressure (particularly for OSR), soil quality, and management practices are not modelled. OSR's low \rsq{} (0.443) likely reflects the dominance of cabbage stem flea beetle impacts over weather effects.
+    \item \textbf{Missing non-weather factors:} Pest pressure (particularly for OSR), soil quality, and management practices are not modelled. OSR's modest \rsq{} (0.585 at best in the long-history transfer experiments, 0.443 in the deployed Flask model) likely reflects the dominance of cabbage stem flea beetle impacts over weather effects.
 
     \item \textbf{Temporal limitation:} The common evaluation period (2004--2016) is only 13~years, and LOOCV results may not generalise to future decades if climate change alters the weather--yield relationships themselves (non-stationarity).
 
@@ -1161,9 +1157,9 @@ Chlingaryan, A., Sukkarieh, S. and Whelan, B. (2018).
 \newblock \emph{Computers and Electronics in Agriculture}, 151, 61--69.
 
 \bibitem[Corcoran et~al.(2023)]{corcoran2023}
-Corcoran, E., Andersson, E. and Gathorne-Hardy, A. (2023).
-\newblock UK crop yield data bottlenecks and opportunities.
-\newblock Proceedings paper.
+Corcoran, E., Afshar, M., Curceac, S., Lashkari, A., Raza, M.M., Ahnert, S., Mead, A. and Morris, R. (2023).
+\newblock Current data and modeling bottlenecks for predicting crop yields in the United Kingdom.
+\newblock \emph{Frontiers in Sustainable Food Systems}, 7, 1023169.
 
 \bibitem[Cornes et~al.(2018)]{cornes2018}
 Cornes, R.C., van~der Schrier, G., van~den Besselaar, E.J.M. and Jones, P.D. (2018).
@@ -1187,13 +1183,13 @@ DEFRA (2024).
 
 \bibitem[Dinh \& Aires(2022)]{dinh2022}
 Dinh, T.L.A. and Aires, F. (2022).
-\newblock Leave-Two-Out cross-validation for small sample sizes.
-\newblock \emph{Environmental Research Letters}.
+\newblock Nested leave-two-out cross-validation for the optimal crop yield model selection.
+\newblock \emph{Geoscientific Model Development}, 15, 3519--3535.
 
 \bibitem[Evans et~al.(2025)]{evans2025}
-Evans, M.R. et~al. (2025).
-\newblock Reconsidering space-for-time substitution in ecology and evolution.
-\newblock \emph{Nature Climate Change}.
+Evans, M.E.K., Adler, P.B., Angert, A.L. et~al. (2025).
+\newblock Reconsidering space-for-time substitution in climate change ecology.
+\newblock \emph{Nature Climate Change}, 15(8), 809--812.
 
 \bibitem[Gammans et~al.(2017)]{gammans2017}
 Gammans, M., Merel, P. and Ortiz-Bobea, A. (2017).
@@ -1230,8 +1226,8 @@ Pan, S.J. and Yang, Q. (2010).
 \newblock A survey on transfer learning.
 \newblock \emph{IEEE Transactions on Knowledge and Data Engineering}, 22(10), 1345--1359.
 
-\bibitem[Paudel et~al.(2022)]{paudel2022}
-Paudel, D., Boogaard, H., de~Wit, A., Janssen, S. et~al. (2022).
+\bibitem[Paudel et~al.(2021)]{paudel2021}
+Paudel, D., Boogaard, H., de~Wit, A., Janssen, S., Osinga, S., Pylianidis, C. and Athanasiadis, I.N. (2021).
 \newblock Machine learning for large-scale crop yield forecasting.
 \newblock \emph{Agricultural Systems}, 187, 103016.
 
@@ -1241,14 +1237,14 @@ Pugh, T.A.M., M\"{u}ller, C., Elliott, J. et~al. (2016).
 \newblock \emph{Nature Communications}, 7, 12608.
 
 \bibitem[Riedesel et~al.(2024)]{riedesel2024}
-Riedesel, L. et~al. (2024).
-\newblock Site-specific heat and drought impacts on German wheat.
+Riedesel, L., Moller, M., Piepho, H.-P., Rentel, D., Lichthardt, C., Golla, B., Kautz, T. and Feike, T. (2024).
+\newblock Site conditions determine heat and drought induced yield losses in wheat and rye in Germany.
 \newblock \emph{Environmental Research Letters}, 19, 034024.
 
 \bibitem[Ronchetti et~al.(2024)]{ronchetti2024}
-Ronchetti, G. et~al. (2024).
-\newblock Harmonized EU subnational crop statistics.
-\newblock \emph{Scientific Data}.
+Ronchetti, G., Nisini~Scacchiafichi, L., Seguini, L., Cerrani, I. and van~der~Velde, M. (2024).
+\newblock Harmonized European Union subnational crop statistics can reveal climate impacts and crop cultivation shifts.
+\newblock \emph{Earth System Science Data}, 16, 1623--1649.
 
 \bibitem[Schauberger et~al.(2018)]{schauberger2018}
 Schauberger, B., Ben-Ari, T., Makowski, D., Kato, T., Kato, H. and Ciais, P. (2018).
@@ -1265,20 +1261,20 @@ van~Klompenburg, T., Kassahun, A. and Catal, C. (2020).
 \newblock Crop yield prediction using machine learning: A systematic literature review.
 \newblock \emph{Computers and Electronics in Agriculture}, 177, 105709.
 
-\bibitem[Zhao et~al.(2019)]{zhao2019}
-Zhao, C., Liu, B., Piao, S. et~al. (2019).
-\newblock Temperature increase reduces global yields of major crops.
-\newblock \emph{Nature Climate Change}, 7, 443--449.
+\bibitem[Zhao et~al.(2017)]{zhao2017}
+Zhao, C., Liu, B., Piao, S. et~al. (2017).
+\newblock Temperature increase reduces global yields of major crops in four independent estimates.
+\newblock \emph{Proceedings of the National Academy of Sciences}, 114(35), 9326--9331.
 
-\bibitem[Zheng et~al.(2015)]{zheng2015}
-Zheng, B., Chenu, K., Dreccer, M.F. and Chapman, S.C. (2015).
-\newblock Breeding for the future: what are the potential impacts of future frost and heat events on sowing and flowering time requirements for Australian bread wheat varieties?
+\bibitem[Zheng et~al.(2012)]{zheng2012}
+Zheng, B., Chenu, K., Dreccer, M.F. and Chapman, S.C. (2012).
+\newblock Breeding for the future: what are the potential impacts of future frost and heat events on sowing and flowering time requirements for Australian bread wheat (\emph{Triticum aestivum}) varieties?
 \newblock \emph{Global Change Biology}, 18(9), 2899--2914.
 
 \bibitem[Zhu et~al.(2021)]{zhu2021}
-Zhu, Y. et~al. (2021).
+Zhu, P., Abramoff, R., Makowski, D. and Ciais, P. (2021).
 \newblock Uncovering the past and future climate drivers of wheat yield shocks in Europe with machine learning.
-\newblock \emph{Earth's Future}, 9(4).
+\newblock \emph{Earth's Future}, 9(5), e2020EF001815.
 
 \end{thebibliography}
 
