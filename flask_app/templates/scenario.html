@@ -18,7 +18,6 @@
             <div class="navbar-nav ms-auto">
                 <a class="nav-link" href="/">Predict</a>
                 <a class="nav-link active" href="/scenario">Scenario Analysis</a>
-                <a class="nav-link" href="/risk">Risk Assessment</a>
             </div>
         </div>
     </nav>
@@ -52,6 +51,13 @@
                         <select class="form-select mb-3" id="scenarioCrop" onchange="onScenarioCropChange()">
                             {% for crop in crops %}
                             <option value="{{ crop }}">{{ crop.replace('_', ' ') }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <label class="form-label">Region</label>
+                        <select class="form-select mb-3" id="scenarioRegion" onchange="markChanges()">
+                            {% for region in regions %}
+                            <option value="{{ region }}">{{ region }}</option>
                             {% endfor %}
                         </select>
 
@@ -135,7 +141,7 @@
     <footer class="mt-5 py-3 bg-light">
         <div class="container text-center">
             <small class="text-muted">
-                Agricultural AI - Scenario Analysis | Dissertation Project 2024
+                Agricultural AI Project - Kuzey Erturk
             </small>
         </div>
     </footer>
@@ -327,7 +333,7 @@
             const config = modelConfig[crop];
             if (!config) return {};
 
-            const data = { crop: crop, region: 'England' };
+            const data = { crop: crop, region: document.getElementById('scenarioRegion').value };
 
             for (const [name, meta] of Object.entries(config.features)) {
                 const el = document.getElementById('scenario_' + name);

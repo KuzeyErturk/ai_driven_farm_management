@@ -1,21 +1,3 @@
-"""
-Scenario-Adaptive Source Country Selection
-============================================
-Tests whether dynamically selecting/weighting source countries based on
-weather scenario similarity improves UK crop yield predictions over the
-static pooled anomaly baseline (France+UK).
-
-Experiments:
-  1. Sample-Level KNN: select k nearest training samples per UK test point
-  2. Country-Level Weighted Blending: RBF-weighted Ridge by country similarity
-  3. Adaptive Country Subset Selection: rank & select top-N countries per fold
-  4. Per-Country Model Ensemble: blend per-group Ridge models by similarity
-  5. Static Ablation: fixed country subsets to establish best static baseline
-
-Usage:
-    python src/france/scenario_adaptive_selection.py
-"""
-
 import os
 import sys
 import numpy as np
@@ -39,13 +21,9 @@ from long_history_transfer import (
     ALL_WEATHER_FEATURES, CROP_NAME_IN_DATA,
 )
 
-# ============================================================================
-# CONFIG
-# ============================================================================
-
 CROPS = list(CROP_FEATURES.keys())
 
-# Region → Country mapping
+# Region and Country mapping
 REGION_TO_COUNTRY = {
     'England': 'UK', 'Scotland': 'UK', 'Wales': 'UK', 'Northern Ireland': 'UK',
     'Nord': 'France', 'Ouest': 'France', 'Est': 'France', 'Sud': 'France',
@@ -54,10 +32,8 @@ REGION_TO_COUNTRY = {
     'Netherlands': 'Netherlands', 'Belgium': 'Belgium', 'Denmark': 'Denmark',
 }
 
-# Maritime climate countries (similar to UK)
 MARITIME_COUNTRIES = ['UK', 'France', 'Ireland', 'Netherlands', 'Belgium']
 
-# Country groups for ensemble (Exp 4)
 COUNTRY_GROUPS = {
     'France': ['France'],
     'Germany': ['Germany'],
@@ -65,17 +41,8 @@ COUNTRY_GROUPS = {
     'Benelux_DK': ['Netherlands', 'Belgium', 'Denmark'],
 }
 
-
-# ============================================================================
-# STEP 1: DATA LOADING & PREPARATION
-# ============================================================================
-
+# STEP 1 : Data Loading and Preparation
 def load_pooled_crop_data(crop):
-    """
-    Load pooled multi-country data for a crop, detrend yields,
-    and standardise weather to anomalies.
-    Returns ready-to-use DataFrame with Country column.
-    """
     pooled_path = os.path.join(PATHS['pooled'],
                                'pooled_regional_crop_yield_weather_2004_2018.csv')
 
@@ -87,7 +54,6 @@ def load_pooled_crop_data(crop):
         path = os.path.join(PATHS['pooled'],
                             f'pooled_{barley_type}_barley_with_weather.csv')
         df = pd.read_csv(path)
-        # Infer Country from Region
         df['Country'] = df['Region'].map(REGION_TO_COUNTRY)
     else:
         df = pd.read_csv(pooled_path)
@@ -97,17 +63,15 @@ def load_pooled_crop_data(crop):
     df = df[(df['Year'] >= YEAR_START) & (df['Year'] <= YEAR_END)].copy()
     df = df.dropna(subset=['Yield_t_per_ha'])
 
-    # Ensure Country column exists
+    # check country column exists
     if 'Country' not in df.columns:
         df['Country'] = df['Region'].map(REGION_TO_COUNTRY)
 
     df = df.dropna(subset=['Country'])
 
-    # Detrend yields per region
     df['Crop'] = crop  # Ensure consistent crop name for detrending
     df = detrend_yields(df, method='linear')
 
-    # Standardise weather to z-score anomalies per region
     features = select_features(df, ALL_WEATHER_FEATURES)
     df = standardise_weather_anomalies(df, features)
 
@@ -115,7 +79,6 @@ def load_pooled_crop_data(crop):
 
 
 def group_small_countries(df):
-    """Merge NL/BE/DK into 'Benelux_DK' group for ensemble experiments."""
     df = df.copy()
     df['CountryGroup'] = df['Country'].replace({
         'Netherlands': 'Benelux_DK',
@@ -125,12 +88,8 @@ def group_small_countries(df):
     return df
 
 
-# ============================================================================
-# STEP 2: UTILITY FUNCTIONS
-# ============================================================================
-
+# STEP 2 : Utility Functiojns
 def compute_sample_distances(test_point, training_data, features):
-    """Compute Euclidean distances from test_point to each training row in scaled space."""
     scaler = StandardScaler()
     X_train = training_data[features].values
     X_train_sc = scaler.fit_transform(X_train)
@@ -140,19 +99,14 @@ def compute_sample_distances(test_point, training_data, features):
 
 
 def compute_country_centroids(df, features):
-    """Compute per-country mean weather vector."""
     centroids = {}
     for country in df['Country'].unique():
         c_data = df[df['Country'] == country][features]
         centroids[country] = c_data.mean().values
     return centroids
 
-
+# Compute the weights -> w_c = exp(-d_c^2 / sigma^2)
 def compute_country_weights(test_point, centroids, features, sigma=None):
-    """
-    Compute RBF weights per country based on distance to test point.
-    w_c = exp(-d_c² / σ²), where σ defaults to median distance.
-    """
     scaler = StandardScaler()
     # Fit scaler on all centroids + test point for consistent scaling
     all_vecs = np.vstack([list(centroids.values()), test_point])
@@ -176,15 +130,7 @@ def compute_country_weights(test_point, centroids, features, sigma=None):
     return weights
 
 
-# ============================================================================
-# EXPERIMENT 5: STATIC ABLATION (baseline — run first)
-# ============================================================================
-
 def experiment_static_ablation(crop, df, features):
-    """
-    Run pooled anomaly LOOCV for each fixed country subset.
-    Establishes which static subsets work best.
-    """
     uk_mask = df['Country'] == 'UK'
     uk_df = df[uk_mask].copy()
     non_uk_df = df[~uk_mask].copy()
@@ -248,15 +194,7 @@ def experiment_static_ablation(crop, df, features):
     return results
 
 
-# ============================================================================
-# EXPERIMENT 1: SAMPLE-LEVEL KNN
-# ============================================================================
-
 def experiment_knn_selection(crop, df, features, k_values=None):
-    """
-    Per UK test point, select k nearest training samples (from all countries),
-    fit Ridge, predict. Tests whether local neighbourhood beats global pooling.
-    """
     if k_values is None:
         k_values = [20, 30, 50, 100]
 
@@ -276,7 +214,7 @@ def experiment_knn_selection(crop, df, features, k_values=None):
     y_source_anom = non_uk_df['Yield_anomaly'].values
     source_countries = non_uk_df['Country'].values
 
-    # Add "all" as a k value (= standard pooled baseline)
+    # Add "all" as a k value (standard pooled baseline)
     k_values_ext = k_values + [len(X_source) + len(X_uk) - 1]
 
     results = {}
@@ -293,7 +231,6 @@ def experiment_knn_selection(crop, df, features, k_values=None):
             pool_countries = np.concatenate([source_countries,
                                              np.array(['UK'] * len(tr))])
 
-            # Scale and compute distances
             sc = StandardScaler()
             X_pool_sc = sc.fit_transform(X_pool)
             X_test_sc = sc.transform(X_uk[te])
@@ -311,7 +248,6 @@ def experiment_knn_selection(crop, df, features, k_values=None):
             model.fit(X_train_k, y_train_k)
             uk_pred[te] = model.predict(X_test_sc) + uk_trends[te]
 
-            # Track neighbour composition
             fold_countries = Counter(pool_countries[knn_idx])
             neighbour_countries.append(fold_countries)
 
@@ -330,15 +266,7 @@ def experiment_knn_selection(crop, df, features, k_values=None):
     return results
 
 
-# ============================================================================
-# EXPERIMENT 2: COUNTRY-LEVEL WEIGHTED BLENDING
-# ============================================================================
-
 def experiment_weighted_blending(crop, df, features):
-    """
-    Per UK test point, compute country-level similarity weights,
-    then fit weighted Ridge. Two variants: 4-var climate summary vs full features.
-    """
     climate_vars = [v for v in ['Summer_Tmax', 'Annual_Rain', 'Winter_Tmin', 'Spring_Rain']
                     if v in features]
 
@@ -368,13 +296,11 @@ def experiment_weighted_blending(crop, df, features):
             train_df = pd.concat([non_uk_df, uk_df.iloc[tr]])
             centroids = compute_country_centroids(train_df, dist_features)
 
-            # Test point weather vector
             test_weather = uk_df.iloc[te[0]][dist_features].values.astype(float)
 
             # Get country weights
             weights = compute_country_weights(test_weather, centroids, dist_features)
 
-            # Build sample weights: each sample gets its country's weight
             X_train_all = np.vstack([non_uk_df[features].values, X_uk[tr]])
             y_train_all = np.concatenate([non_uk_df['Yield_anomaly'].values, y_uk_anom[tr]])
             countries_all = np.concatenate([non_uk_df['Country'].values,
@@ -395,15 +321,7 @@ def experiment_weighted_blending(crop, df, features):
 
     return results
 
-
-# ============================================================================
-# EXPERIMENT 3: ADAPTIVE COUNTRY SUBSET SELECTION
-# ============================================================================
-
 def experiment_adaptive_subset(crop, df, features):
-    """
-    Per UK test point, rank countries by similarity, select top-N, pool + fit Ridge.
-    """
     climate_vars = [v for v in ['Summer_Tmax', 'Annual_Rain', 'Winter_Tmin', 'Spring_Rain']
                     if v in features]
     if not climate_vars:
@@ -428,13 +346,12 @@ def experiment_adaptive_subset(crop, df, features):
     for n in n_values:
         loo = LeaveOneOut()
         uk_pred = np.zeros(len(y_uk_anom))
-        selection_counts = Counter()  # Track which countries get selected
+        selection_counts = Counter() 
 
         for tr, te in loo.split(X_uk):
             # Compute centroids from non-UK data
             centroids = compute_country_centroids(non_uk_df, climate_vars)
 
-            # Test point weather
             test_weather = uk_df.iloc[te[0]][climate_vars].values.astype(float)
 
             # Rank countries by distance
@@ -472,15 +389,7 @@ def experiment_adaptive_subset(crop, df, features):
     return results
 
 
-# ============================================================================
-# EXPERIMENT 4: PER-COUNTRY MODEL ENSEMBLE
-# ============================================================================
-
 def experiment_ensemble(crop, df, features):
-    """
-    Train separate Ridge models per country group (France, Germany, Ireland,
-    Benelux_DK), blend predictions by similarity weight.
-    """
     df = group_small_countries(df)
 
     uk_mask = df['Country'] == 'UK'
@@ -495,13 +404,11 @@ def experiment_ensemble(crop, df, features):
     uk_trends = uk_df['Yield_trend'].values
     y_uk_actual = uk_df['Yield_t_per_ha'].values
 
-    # Climate vars for weighting
     climate_vars = [v for v in ['Summer_Tmax', 'Annual_Rain', 'Winter_Tmin', 'Spring_Rain']
                     if v in features]
     if not climate_vars:
         climate_vars = features[:4]
 
-    # Check which groups have enough data
     groups = {}
     for gname, countries in COUNTRY_GROUPS.items():
         group_data = non_uk_df[non_uk_df['Country'].isin(countries)]
@@ -522,14 +429,11 @@ def experiment_ensemble(crop, df, features):
         for gname, gdata in groups.items():
             group_centroids[gname] = gdata[climate_vars].mean().values
 
-        # Add UK-train as a "group" too
         uk_train_centroid = uk_df.iloc[tr][climate_vars].mean().values
         group_centroids['UK_train'] = uk_train_centroid
-
-        # Get weights
         weights = compute_country_weights(test_weather, group_centroids, climate_vars)
 
-        # Train per-group models + UK-train model
+        # Train models + UK-train model
         predictions = {}
         for gname, gdata in groups.items():
             X_g = np.vstack([gdata[features].values, X_uk[tr]])
@@ -564,23 +468,13 @@ def experiment_ensemble(crop, df, features):
     return {'r2': r2, 'rmse': rmse, 'n_groups': len(groups)}
 
 
-# ============================================================================
-# MAIN
-# ============================================================================
-
 def main():
-    print("=" * 70)
-    print("SCENARIO-ADAPTIVE SOURCE COUNTRY SELECTION")
-    print("=" * 70)
 
     all_results = {}
 
     for crop in CROPS:
-        print(f"\n{'='*70}")
         print(f"CROP: {crop}")
-        print(f"{'='*70}")
-
-        # Load and prepare data
+        # Loading and data preparation
         df = load_pooled_crop_data(crop)
         features = select_features(df, ALL_WEATHER_FEATURES)
 
@@ -598,28 +492,24 @@ def main():
 
         crop_results = {'crop': crop, 'n_uk': uk_n, 'n_total': len(df)}
 
-        # --- Experiment 5: Static Ablation (run first as baseline) ---
         print(f"\n  [Exp 5] Static Ablation...")
         ablation = experiment_static_ablation(crop, df, features)
         if ablation:
             crop_results['ablation'] = ablation
             print(f"    {'Subset':<20} {'R²':>8} {'RMSE':>8} {'N source':>10}")
-            print(f"    {'-'*48}")
             for name, res in sorted(ablation.items(), key=lambda x: x[1]['r2'], reverse=True):
                 print(f"    {name:<20} {res['r2']:>8.3f} {res['rmse']:>8.3f} {res['n_source']:>10}")
 
-        # --- Experiment 1: Sample-Level KNN ---
+        # KNN ecxperiment
         print(f"\n  [Exp 1] Sample-Level KNN...")
         knn = experiment_knn_selection(crop, df, features)
         if knn:
             crop_results['knn'] = knn
             print(f"    {'k':<10} {'R²':>8} {'RMSE':>8}  Top-3 neighbours")
-            print(f"    {'-'*60}")
             for k_label, res in knn.items():
                 top3 = ', '.join(f"{c}:{p}%" for c, p in list(res['composition'].items())[:3])
                 print(f"    {k_label:<10} {res['r2']:>8.3f} {res['rmse']:>8.3f}  {top3}")
 
-        # --- Experiment 2: Country-Level Weighted Blending ---
         print(f"\n  [Exp 2] Country-Level Weighted Blending...")
         weighted = experiment_weighted_blending(crop, df, features)
         if weighted:
@@ -627,18 +517,15 @@ def main():
             for vname, res in weighted.items():
                 print(f"    {vname:<20} R²={res['r2']:.3f}, RMSE={res['rmse']:.3f}")
 
-        # --- Experiment 3: Adaptive Country Subset Selection ---
         print(f"\n  [Exp 3] Adaptive Country Subset Selection...")
         adaptive = experiment_adaptive_subset(crop, df, features)
         if adaptive:
             crop_results['adaptive'] = adaptive
             print(f"    {'N':<10} {'R²':>8} {'RMSE':>8}  Selection frequency")
-            print(f"    {'-'*65}")
             for n_label, res in adaptive.items():
                 freq = ', '.join(f"{c}:{p}%" for c, p in list(res['selection_freq'].items())[:4])
                 print(f"    {n_label:<10} {res['r2']:>8.3f} {res['rmse']:>8.3f}  {freq}")
 
-        # --- Experiment 4: Per-Country Model Ensemble ---
         print(f"\n  [Exp 4] Per-Country Model Ensemble...")
         ensemble = experiment_ensemble(crop, df, features)
         if ensemble:
@@ -647,19 +534,9 @@ def main():
                   f"({ensemble['n_groups']} groups)")
 
         all_results[crop] = crop_results
-
-    # ========================================================================
-    # SUMMARY TABLES
-    # ========================================================================
-    print("\n\n" + "=" * 70)
-    print("SUMMARY TABLES")
-    print("=" * 70)
-
-    # --- Table 1: All adaptive methods vs baselines ---
     print(f"\n  Table 1: All Methods vs Baselines (UK LOOCV R²)")
     print(f"  {'Crop':<16} {'UK-only':>8} {'Pool(FR)':>8} {'Pool7':>8} "
           f"{'KNN-30':>8} {'Wt-4var':>8} {'Adpt-2':>8} {'Ensemb':>8}")
-    print(f"  {'-'*72}")
 
     for crop in CROPS:
         if crop not in all_results:
@@ -677,13 +554,11 @@ def main():
         print(f"  {crop:<16} {uk_only:>8.3f} {pool_fr:>8.3f} {pool_all:>8.3f} "
               f"{knn_30:>8.3f} {wt_4var:>8.3f} {adpt_2:>8.3f} {ens:>8.3f}")
 
-    # --- Table 2: Static ablation ---
     print(f"\n  Table 2: Static Ablation — Best Subsets (UK LOOCV R²)")
     subsets_order = ['UK-only', '+FR', '+DE', '+IE', '+FR+DE', '+FR+IE',
                      '+FR+DE+IE', '+all7', '+Maritime']
     header = f"  {'Subset':<14}" + ''.join(f'{c:>14}' for c in CROPS)
     print(header)
-    print(f"  {'-'*len(header)}")
     for subset in subsets_order:
         vals = []
         for crop in CROPS:
@@ -695,7 +570,6 @@ def main():
         row = f"  {subset:<14}" + ''.join(f'{v:>14.3f}' for v in vals)
         print(row)
 
-    # --- Table 3: KNN neighbour composition ---
     print(f"\n  Table 3: KNN Neighbour Composition (k=30)")
     for crop in CROPS:
         if crop not in all_results:
@@ -704,8 +578,6 @@ def main():
         comp = knn.get('composition', {})
         if comp:
             print(f"  {crop}: {comp}")
-
-    # --- Table 4: Country selection frequency (Exp 3, top-2) ---
     print(f"\n  Table 4: Country Selection Frequency (Adaptive, top-2)")
     for crop in CROPS:
         if crop not in all_results:
@@ -715,17 +587,11 @@ def main():
         if freq:
             print(f"  {crop}: {freq}")
 
-    # --- Known baselines for comparison ---
     print(f"\n  Known Baselines (from previous experiments):")
     print(f"    UK-only Ridge LOOCV:     Wheat=0.284, W.Barley=0.238, "
           f"S.Barley=0.221, Oats=0.248, OSR=0.196")
     print(f"    Pooled Anomaly (FR+UK):  Wheat=0.696, W.Barley=0.675, "
           f"S.Barley=0.764, Oats=0.478, OSR=0.585")
-
-    print("\n" + "=" * 70)
-    print("DONE")
-    print("=" * 70)
-
 
 if __name__ == '__main__':
     main()

@@ -1,15 +1,3 @@
-"""
-Cross-Country Comparison Configuration
-========================================
-Maps French départements and German districts to macro-regions,
-defines crop name mappings, and provides shared constants.
-
-Data sources:
-- France: Schauberger et al. (2022), DOI: 10.5880/PIK.2021.001
-- Germany: OpenAgrar district-level dataset (2024)
-- UK: Project's own regional dataset
-"""
-
 import os
 
 # ---------------------------------------------------------------------------
@@ -32,27 +20,14 @@ PATHS = {
     'models': os.path.join(PROJECT_ROOT, 'src', 'models'),
 }
 
-# ---------------------------------------------------------------------------
-# SHARED CONSTANTS
-# ---------------------------------------------------------------------------
-
 CROPS = ['Wheat', 'Winter_Barley', 'Spring_Barley', 'Oats', 'Oilseed_Rape']
 
 YEAR_START = 2004
 YEAR_END = 2016  # Common overlap: France ends 2016 in GDHY, Germany goes to 2021
 
-# Optimal annual rainfall (mm) — for Rain_Deviation_from_Optimal
 UK_OPTIMAL_RAINFALL = 1180
 FRANCE_OPTIMAL_RAINFALL = 750
 GERMANY_OPTIMAL_RAINFALL = 700
-
-# ---------------------------------------------------------------------------
-# FRANCE: Schauberger et al. (2022) département → 4 macro-regions
-# ---------------------------------------------------------------------------
-# Nord  = Northern cereal belt (Picardie, Nord-PdC, Ile-de-France, Haute-Normandie)
-# Ouest = Atlantic/oceanic (Bretagne, Pays de la Loire, Basse-Normandie, Poitou-Charentes)
-# Est   = Continental (Champagne-Ardenne, Lorraine, Alsace, Bourgogne, Franche-Comté, Centre)
-# Sud   = Southern (Aquitaine, Midi-Pyrénées, Languedoc-Roussillon, PACA, Rhône-Alpes, Auvergne)
 
 FRANCE_REGIONS = ['Nord', 'Ouest', 'Est', 'Sud']
 
@@ -97,7 +72,7 @@ FRANCE_DEPT_TO_REGION = {
     'Corse_du_Sud': 'Sud', 'Haute_Corse': 'Sud',
 }
 
-# Schauberger file names → project crop names
+# Schauberger file names -> project crop names
 FRANCE_CROP_FILES = {
     'Wheat':         'wheat_total_data_1900-2018_FILTERED.txt',
     'Winter_Barley': 'barley_winter_data_1900-2018_FILTERED.txt',
@@ -111,16 +86,6 @@ FRANCE_DATA_DIR = os.path.join(
     'franceDOI-Schauberger',
     '2021-001_Schauberger-et-al_Data_FILTERED'
 )
-
-# ---------------------------------------------------------------------------
-# GERMANY: OpenAgrar district-level dataset
-# ---------------------------------------------------------------------------
-# 16 Bundesländer grouped into 4 macro-regions (climate zones)
-# Nord  = Northern lowland (Schleswig-Holstein, Niedersachsen, Mecklenburg-Vorpommern,
-#         Hamburg, Bremen)
-# West  = Western (Nordrhein-Westfalen, Rheinland-Pfalz, Saarland, Hessen)
-# Ost   = Eastern (Brandenburg, Sachsen-Anhalt, Sachsen, Thüringen, Berlin)
-# Sued  = Southern (Bayern, Baden-Württemberg)
 
 GERMANY_REGIONS = ['Nord_DE', 'West_DE', 'Ost_DE', 'Sued_DE']
 
@@ -158,10 +123,6 @@ GERMANY_CROP_MAPPING = {
 
 GERMANY_CSV_PATH = os.path.join(PATHS['france_raw'], 'Germany.csv')
 
-# ---------------------------------------------------------------------------
-# ERA5 bounding boxes [North, West, South, East] per French region
-# (for future use if downloading real ERA5 data)
-# ---------------------------------------------------------------------------
 ERA5_BBOXES = {
     'Nord':  [51.0, 0.5, 48.5, 3.5],
     'Ouest': [48.8, -5.0, 45.5, 0.5],

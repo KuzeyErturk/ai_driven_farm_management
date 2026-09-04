@@ -1,14 +1,7 @@
 import pandas as pd
 import numpy as np
 
-print("="*70)
-print("PROCESSING SPRING & WINTER BARLEY DATA")
-print("="*70)
-
-# ============================================================================
-# SPRING BARLEY DATA
-# ============================================================================
-
+# Spring barley data
 years = list(range(2004, 2025))
 
 spring_barley_data = {
@@ -30,10 +23,7 @@ spring_barley_data = {
     }
 }
 
-# ============================================================================
-# WINTER BARLEY DATA
-# ============================================================================
-
+# Winter barley data
 winter_barley_data = {
     'England': {
         'Area': [350923,321312,322258,318829,345903,346598,320475,298254,328796,256899,363227,375812,375650,360873,335654,387918,253279,345220,371723,390983,325474],
@@ -52,10 +42,6 @@ winter_barley_data = {
         'Yield': [6.9,6.0,6.7,6.2,7.0,6.7,7.3,7.1,6.1,7.0,7.1,7.7,6.8,6.8,6.9,8.1,5.8,7.5,7.0,6.5,6.5]
     }
 }
-
-# ============================================================================
-# CREATE DATAFRAMES
-# ============================================================================
 
 spring_rows = []
 winter_rows = []
@@ -81,17 +67,10 @@ for region in ['England', 'Wales', 'Scotland', 'Northern Ireland']:
 spring_df = pd.DataFrame(spring_rows)
 winter_df = pd.DataFrame(winter_rows)
 
-print(f"\n✓ Spring Barley: {len(spring_df)} observations")
-print(f"✓ Winter Barley: {len(winter_df)} observations")
+print(f"\nSpring Barley: {len(spring_df)} observations")
+print(f"Winter Barley: {len(winter_df)} observations")
 
-# ============================================================================
-# COMPARE YIELDS
-# ============================================================================
-
-print("\n" + "="*70)
-print("YIELD COMPARISON: SPRING vs WINTER BARLEY")
-print("="*70)
-
+# Compare yields
 print(f"\nSPRING BARLEY:")
 print(f"  Overall: {spring_df['Yield_t_per_ha'].mean():.2f} ± {spring_df['Yield_t_per_ha'].std():.2f} t/ha")
 print(f"  Train (2004-2019): {spring_df[spring_df['Year'] <= 2019]['Yield_t_per_ha'].mean():.2f} ± {spring_df[spring_df['Year'] <= 2019]['Yield_t_per_ha'].std():.2f}")
@@ -102,7 +81,7 @@ print(f"  Overall: {winter_df['Yield_t_per_ha'].mean():.2f} ± {winter_df['Yield
 print(f"  Train (2004-2019): {winter_df[winter_df['Year'] <= 2019]['Yield_t_per_ha'].mean():.2f} ± {winter_df[winter_df['Year'] <= 2019]['Yield_t_per_ha'].std():.2f}")
 print(f"  Test (2020-2024): {winter_df[winter_df['Year'] >= 2020]['Yield_t_per_ha'].mean():.2f} ± {winter_df[winter_df['Year'] >= 2020]['Yield_t_per_ha'].std():.2f}")
 
-print(f"\n💡 KEY DIFFERENCE:")
+print(f"\nKEY DIFFERENCE:")
 print(f"  Winter barley yields {winter_df['Yield_t_per_ha'].mean() - spring_df['Yield_t_per_ha'].mean():.2f} t/ha MORE than spring!")
 
 # Check structural shift
@@ -114,26 +93,16 @@ print(f"  Spring barley: {spring_change:+.2f} t/ha")
 print(f"  Winter barley: {winter_change:+.2f} t/ha")
 
 if abs(spring_change) > 0.2 or abs(winter_change) > 0.2:
-    print(f"  ⚠️  Structural shift detected!")
+    print(f"Structural shift yes")
 
-# ============================================================================
-# SAVE SEPARATE FILES
-# ============================================================================
-
+# Save the files
 spring_df.to_csv('data/spring_barley_regional.csv', index=False)
 winter_df.to_csv('data/winter_barley_regional.csv', index=False)
 
-print("\n✓ Saved: data/spring_barley_regional.csv")
-print("\n✓ Saved: data/winter_barley_regional.csv")
+print("\n Saved to data/spring_barley_regional.csv")
+print("\nSaved to data/winter_barley_regional.csv")
 
-# ============================================================================
-# COMBINE WITH WEATHER
-# ============================================================================
-
-print("\n" + "="*70)
-print("MERGING WITH WEATHER DATA")
-print("="*70)
-
+# Merge the data - first load 
 # Load weather
 weather = pd.read_csv('data/regional_seasonal_weather_features.csv')
 
@@ -141,16 +110,11 @@ weather = pd.read_csv('data/regional_seasonal_weather_features.csv')
 spring_full = spring_df.merge(weather, on=['Year', 'Region'], how='inner')
 winter_full = winter_df.merge(weather, on=['Year', 'Region'], how='inner')
 
-print(f"\n✓ Spring Barley + Weather: {len(spring_full)} observations, {len(spring_full.columns)} variables")
-print(f"✓ Winter Barley + Weather: {len(winter_full)} observations, {len(winter_full.columns)} variables")
+print(f"\nSpring Barley + Weather: {len(spring_full)} observations, {len(spring_full.columns)} variables")
+print(f"Winter Barley + Weather: {len(winter_full)} observations, {len(winter_full.columns)} variables")
 
 spring_full.to_csv('data/spring_barley_with_weather.csv', index=False)
 winter_full.to_csv('data/winter_barley_with_weather.csv', index=False)
 
-print("\n✓ Saved: data/spring_barley_with_weather.csv")
-print("✓ Saved: data/winter_barley_with_weather.csv")
-
-print("\n" + "="*70)
-print("✅ SPRING & WINTER BARLEY DATA READY!")
-print("="*70)
-print("\nNext: Build separate models for spring and winter barley!")
+print("\nSaved to data/spring_barley_with_weather.csv")
+print("Saved to data/winter_barley_with_weather.csv")

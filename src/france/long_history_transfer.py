@@ -1,27 +1,3 @@
-"""
-Long-History Detrended Anomaly Transfer
-=========================================
-Uses France's extended historical depth (1995-2018, 24 years vs current 13)
-to learn robust weather-anomaly → yield-anomaly relationships, then transfers
-those response curves to UK weather anomalies.
-
-Core idea:
-  1. Extend E-OBS weather processing to 1995-2018 for French regions
-  2. Load Schauberger yields for 1995-2018 (département → 4 macro-regions)
-  3. Detrend yields per region to remove technology/variety trends
-  4. Train Ridge on weather features → yield anomalies (France, 24 years)
-  5. Apply learned anomaly response to UK weather anomalies
-  6. Add UK's own yield trend back → evaluate
-
-Why this could work:
-  - 24 years captures more weather extremes than 13 (e.g. 2003 heatwave)
-  - Detrending removes the main source of transfer failure (different yield levels)
-  - Transferring response *shapes* rather than absolute predictions
-
-Usage:
-    python src/france/long_history_transfer.py
-"""
-
 import os
 import sys
 import numpy as np
@@ -43,11 +19,7 @@ from config import (
 sys.path.insert(0, PATHS['models'])
 from baseline_model_config import CROP_FEATURES
 
-# ============================================================================
-# CONFIG
-# ============================================================================
-
-EXTENDED_YEAR_START = 1995  # E-OBS data starts at 1995
+EXTENDED_YEAR_START = 1995  # E-OBS data starting from 1995
 EXTENDED_YEAR_END = 2018    # Schauberger data ends at 2018
 UK_YEAR_START = 2004
 UK_YEAR_END = 2016          # Common overlap for evaluation
@@ -78,21 +50,10 @@ ALL_WEATHER_FEATURES = [
     'Heat_Stress', 'Cold_Spring', 'Extreme_Summer_Rain', 'Drought_Spring',
 ]
 
-
-# ============================================================================
-# STEP 1: EXTENDED E-OBS WEATHER PROCESSING (1995-2018)
-# ============================================================================
-
 def process_extended_eobs_weather():
-    """
-    Process E-OBS data for French regions over 1995-2018.
-    Saves extended monthly weather CSVs.
-    Returns dict of {region: DataFrame}.
-    """
     output_dir = PATHS['france_raw']
     extended_prefix = 'eobs_monthly_weather_extended_'
 
-    # Check if already processed
     existing = {}
     for region in FRANCE_REGIONS:
         path = os.path.join(output_dir, f'{extended_prefix}{region}.csv')
@@ -106,9 +67,7 @@ def process_extended_eobs_weather():
             print(f"  Extended weather already processed ({min_year}-{max_year})")
             return existing
 
-    print("  Processing E-OBS weather for 1995-2018 (this may take a few minutes)...")
 
-    # Import E-OBS processing functions
     from process_eobs_weather import (
         load_eobs_variable, build_region_masks, EOBS_DIR, GADM_PATH, MONTH_NAMES,
     )
@@ -123,37 +82,30 @@ def process_extended_eobs_weather():
     # Get grid coordinates
     sample_path = os.path.join(EOBS_DIR, 'tx_1995-2010.nc')
     ds_sample = xr.open_dataset(sample_path)
-    lat_sl = slice(42, 51.5)  # France only (narrower than FR+DE)
+    lat_sl = slice(42, 51.5) 
     lon_sl = slice(-5.5, 8.5)
     lats = ds_sample.latitude.sel(latitude=lat_sl).values
     lons = ds_sample.longitude.sel(longitude=lon_sl).values
     ds_sample.close()
 
-    # Build spatial masks (France regions only)
     masks = build_region_masks(nuts3_fr, lats, lons)
     france_masks = {r: masks[r] for r in FRANCE_REGIONS if r in masks}
 
     if not france_masks:
         raise RuntimeError("No French region masks created")
 
-    # Load E-OBS variables for extended period
     time_start = f'{EXTENDED_YEAR_START}-01-01'
     time_end = f'{EXTENDED_YEAR_END}-12-31'
 
-    print("    Loading Tmax...")
     ds_tx = load_eobs_variable('tx', time_start, time_end, lat_sl, lon_sl)
-    print("    Loading Tmin...")
     ds_tn = load_eobs_variable('tn', time_start, time_end, lat_sl, lon_sl)
-    print("    Loading Precipitation...")
     ds_rr = load_eobs_variable('rr', time_start, time_end, lat_sl, lon_sl)
 
-    # Try radiation
     ds_qq = None
     try:
-        print("    Loading Radiation...")
         ds_qq = load_eobs_variable('qq', time_start, time_end, lat_sl, lon_sl)
     except FileNotFoundError:
-        print("    Radiation not available — sunshine estimated.")
+        print("No radiation")
 
     tx = ds_tx['tx']
     tn = ds_tn['tn']
@@ -181,13 +133,12 @@ def process_extended_eobs_weather():
         tn_frost[~np.broadcast_to(mask3d, tn_frost.shape)] = np.nan
         frost_region = np.nanmean(tn_frost, axis=(1, 2))
 
-        # Radiation (may cover different time range than tx/tn/rr)
+        # Radiation
         qq_series = None
         if ds_qq is not None:
             qq = ds_qq['qq']
             qq_times = pd.DatetimeIndex(qq.time.values)
             qq_vals = qq.values.copy()
-            # qq may have different spatial dims if loaded from different file
             if qq_vals.shape[1:] == mask.shape:
                 qq_vals[~np.broadcast_to(mask3d, qq_vals.shape)] = np.nan
                 qq_region = np.nanmean(qq_vals, axis=(1, 2))
@@ -201,7 +152,6 @@ def process_extended_eobs_weather():
             'frost_flag': (tn_region < 0).astype(float),
         })
         if qq_series is not None:
-            # Align radiation to same time index as temperature/rain
             daily_df['sunshine'] = daily_df['time'].map(qq_series).values
         else:
             daily_df['sunshine'] = np.nan
@@ -251,17 +201,7 @@ def process_extended_eobs_weather():
 
     return result
 
-
-# ============================================================================
-# STEP 2: LOAD EXTENDED FRANCE YIELDS (1995-2018)
-# ============================================================================
-
 def load_extended_france_yields():
-    """
-    Load Schauberger yields for 1995-2018, aggregated to 4 macro-regions.
-    Returns DataFrame with columns: Year, Region, Crop, Area_hectares, Yield_t_per_ha.
-    """
-    print("  Loading France yields (Schauberger, 1995-2018)...")
     all_rows = []
 
     for crop_name, filename in FRANCE_CROP_FILES.items():
@@ -295,15 +235,7 @@ def load_extended_france_yields():
     return result
 
 
-# ============================================================================
-# STEP 3: COMPUTE SEASONAL FEATURES FOR EXTENDED PERIOD
-# ============================================================================
-
 def compute_extended_seasonal_features(monthly_data):
-    """
-    Compute 47 seasonal weather features from extended monthly data.
-    Reuses the same logic as process_era5_weather.py.
-    """
     from process_era5_weather import compute_seasonal_features, extract_variable_dfs
 
     all_features = []
@@ -327,22 +259,7 @@ def compute_extended_seasonal_features(monthly_data):
     print(f"  Extended features: {len(features_df)} rows, {len(feature_cols)} features")
     return features_df
 
-
-# ============================================================================
-# STEP 4: DETRENDING
-# ============================================================================
-
 def detrend_yields(df, method='linear'):
-    """
-    Detrend yields per (Region, Crop) group, removing technology/variety trends.
-    Returns DataFrame with added columns:
-      - Yield_trend: fitted trend value
-      - Yield_anomaly: actual - trend (the weather-driven residual)
-
-    Methods:
-      - 'linear': OLS linear trend
-      - 'quadratic': quadratic trend (captures yield plateaus)
-    """
     df = df.copy()
     df['Yield_trend'] = np.nan
     df['Yield_anomaly'] = np.nan
@@ -374,11 +291,6 @@ def detrend_yields(df, method='linear'):
 
 
 def standardise_weather_anomalies(df, weather_features):
-    """
-    Convert weather features to anomalies (deviations from per-region means).
-    This makes weather features comparable across countries by removing
-    the different climate baselines.
-    """
     df = df.copy()
     for feat in weather_features:
         if feat not in df.columns:
@@ -386,18 +298,11 @@ def standardise_weather_anomalies(df, weather_features):
         # Per-region anomaly
         region_mean = df.groupby('Region')[feat].transform('mean')
         region_std = df.groupby('Region')[feat].transform('std')
-        # Avoid division by zero
         region_std = region_std.replace(0, 1)
         df[feat] = (df[feat] - region_mean) / region_std
     return df
 
-
-# ============================================================================
-# STEP 5: LOAD UK DATA
-# ============================================================================
-
 def load_uk_data():
-    """Load UK yield + weather data."""
     uk_regional = pd.read_csv(os.path.join(
         PATHS['uk_processed'], 'regional_crop_yield_weather_2004_2024.csv'))
     uk_spring = pd.read_csv(os.path.join(
@@ -408,7 +313,6 @@ def load_uk_data():
 
 
 def get_uk_crop_data(uk_regional, uk_spring, uk_winter, crop):
-    """Extract data for a specific UK crop."""
     if crop == 'Spring_Barley':
         df = uk_spring.copy()
     elif crop == 'Winter_Barley':
@@ -420,54 +324,31 @@ def get_uk_crop_data(uk_regional, uk_spring, uk_winter, crop):
     df = df[(df['Year'] >= UK_YEAR_START) & (df['Year'] <= UK_YEAR_END)]
     return df
 
-
-# ============================================================================
-# STEP 6: TRANSFER EXPERIMENTS
-# ============================================================================
-
 def select_features(df, feature_list):
-    """Select available features with non-zero variance."""
     available = [f for f in feature_list if f in df.columns
                  and df[f].notna().any() and df[f].std() > 0.001]
     return available
 
 
 def experiment_france_anomaly_to_uk(france_df, uk_df, weather_features, crop, alpha=1.0):
-    """
-    Train on France yield anomalies, predict UK yield anomalies.
-
-    Steps:
-      1. Detrend France yields → yield anomalies
-      2. Detrend UK yields → yield anomalies (for evaluation only)
-      3. Standardise weather features to anomalies (per-region z-scores)
-      4. Train Ridge on France: weather anomalies → yield anomalies
-      5. Apply to UK weather anomalies → predicted UK yield anomalies
-      6. Add UK trend back → final prediction
-      7. Compare with UK-only baseline (LOOCV)
-    """
     features = select_features(france_df, weather_features)
     features = [f for f in features if f in uk_df.columns
                 and uk_df[f].notna().any() and uk_df[f].std() > 0.001]
 
     if len(features) < 3:
         return None
-
-    # --- Detrend ---
     france_dt = detrend_yields(france_df, method='linear')
     uk_dt = detrend_yields(uk_df, method='linear')
 
-    # --- Standardise weather to per-region anomalies ---
     france_std = standardise_weather_anomalies(france_dt, features)
     uk_std = standardise_weather_anomalies(uk_dt, features)
 
-    # Drop rows with NaN in key columns
     france_clean = france_std.dropna(subset=features + ['Yield_anomaly'])
     uk_clean = uk_std.dropna(subset=features + ['Yield_anomaly', 'Yield_trend'])
 
     if len(france_clean) < 10 or len(uk_clean) < 5:
         return None
 
-    # --- Train on France anomalies ---
     X_france = france_clean[features].values
     y_france = france_clean['Yield_anomaly'].values
 
@@ -477,23 +358,20 @@ def experiment_france_anomaly_to_uk(france_df, uk_df, weather_features, crop, al
     model = Ridge(alpha=alpha)
     model.fit(X_france_sc, y_france)
 
-    # France training R²
+    # France training R^2
     france_train_r2 = r2_score(y_france, model.predict(X_france_sc))
 
-    # --- Apply to UK ---
     X_uk = uk_clean[features].values
     X_uk_sc = scaler.transform(X_uk)
 
     uk_pred_anomaly = model.predict(X_uk_sc)
 
-    # Reconstruct full yield: predicted anomaly + UK's own trend
     uk_pred_yield = uk_pred_anomaly + uk_clean['Yield_trend'].values
     uk_actual_yield = uk_clean['Yield_t_per_ha'].values
 
     transfer_r2 = r2_score(uk_actual_yield, uk_pred_yield)
     transfer_rmse = np.sqrt(mean_squared_error(uk_actual_yield, uk_pred_yield))
 
-    # Anomaly-level R² (how well do we predict UK weather-driven variation?)
     uk_actual_anomaly = uk_clean['Yield_anomaly'].values
     anomaly_r2 = r2_score(uk_actual_anomaly, uk_pred_anomaly)
 
@@ -510,25 +388,6 @@ def experiment_france_anomaly_to_uk(france_df, uk_df, weather_features, crop, al
 
 
 def experiment_rescaled_transfer(france_df, uk_df, weather_features, crop, alpha=1.0):
-    """
-    Anomaly-rescaled direct transfer.
-
-    The France-trained model captures the correct *direction* of weather effects
-    but the wrong *magnitude* (France yield variability ≠ UK yield variability).
-    We fix this by rescaling predicted anomalies via LOOCV:
-
-    For each held-out UK point:
-      1. Train Ridge on France anomalies
-      2. Predict anomalies for ALL UK points
-      3. Use the non-held-out UK points to estimate a linear calibration:
-         actual_uk_anomaly = a * predicted_anomaly + b
-      4. Apply calibration to the held-out point
-      5. Add UK trend back
-
-    This only uses UK data for scale calibration (2 parameters: shift + scale),
-    NOT for learning weather-yield relationships. The weather response shapes
-    come entirely from France.
-    """
     features = select_features(france_df, weather_features)
     features = [f for f in features if f in uk_df.columns
                 and uk_df[f].notna().any() and uk_df[f].std() > 0.001]
@@ -567,18 +426,14 @@ def experiment_rescaled_transfer(france_df, uk_df, weather_features, crop, alpha
     uk_trends = uk_clean['Yield_trend'].values
     y_uk_actual = uk_clean['Yield_t_per_ha'].values
 
-    # --- Method 1: Variance rescaling via LOOCV ---
-    # For each held-out UK point, use the rest to estimate scale factor
     loo = LeaveOneOut()
     rescaled_pred_var = np.zeros(len(uk_raw_pred))
 
     for tr, te in loo.split(uk_raw_pred):
-        # Estimate scale: ratio of actual to predicted std
         pred_std = np.std(uk_raw_pred[tr])
         actual_std = np.std(uk_actual_anomaly[tr])
         scale = actual_std / pred_std if pred_std > 1e-6 else 1.0
 
-        # Rescale: zero-mean predicted * scale
         pred_mean = np.mean(uk_raw_pred[tr])
         rescaled_pred_var[te] = (uk_raw_pred[te] - pred_mean) * scale
 
@@ -586,24 +441,17 @@ def experiment_rescaled_transfer(france_df, uk_df, weather_features, crop, alpha
     var_r2 = r2_score(y_uk_actual, var_yield)
     var_rmse = np.sqrt(mean_squared_error(y_uk_actual, var_yield))
 
-    # --- Method 2: Linear calibration via LOOCV ---
-    # actual_anomaly = a * predicted_anomaly + b
     rescaled_pred_lin = np.zeros(len(uk_raw_pred))
 
     for tr, te in loo.split(uk_raw_pred):
-        # Fit linear calibration on training fold
         coeffs = np.polyfit(uk_raw_pred[tr], uk_actual_anomaly[tr], 1)
         rescaled_pred_lin[te] = np.polyval(coeffs, uk_raw_pred[te])
 
     lin_yield = rescaled_pred_lin + uk_trends
     lin_r2 = r2_score(y_uk_actual, lin_yield)
     lin_rmse = np.sqrt(mean_squared_error(y_uk_actual, lin_yield))
-
-    # --- Method 3: Correlation-based (no UK data needed) ---
-    # Just check if France model captures the right direction
     raw_corr = np.corrcoef(uk_raw_pred, uk_actual_anomaly)[0, 1]
 
-    # Pick the best rescaling method
     best_method = 'variance' if var_r2 >= lin_r2 else 'linear'
     best_r2 = max(var_r2, lin_r2)
     best_rmse = var_rmse if var_r2 >= lin_r2 else lin_rmse
@@ -625,7 +473,6 @@ def experiment_rescaled_transfer(france_df, uk_df, weather_features, crop, alpha
 
 
 def experiment_uk_only_baseline(uk_df, weather_features, crop):
-    """UK-only LOOCV Ridge baseline for comparison."""
     features = select_features(uk_df, weather_features)
     if len(features) < 3:
         return None
@@ -655,10 +502,6 @@ def experiment_uk_only_baseline(uk_df, weather_features, crop):
 
 
 def experiment_pooled_anomaly(france_df, uk_df, weather_features, crop, alpha=1.0):
-    """
-    Pooled anomaly model: train on BOTH France + UK anomalies together,
-    evaluate UK via LOOCV.
-    """
     features = select_features(france_df, weather_features)
     features = [f for f in features if f in uk_df.columns
                 and uk_df[f].notna().any() and uk_df[f].std() > 0.001]
@@ -691,7 +534,6 @@ def experiment_pooled_anomaly(france_df, uk_df, weather_features, crop, alpha=1.
     uk_pred_yield = np.zeros(len(y_uk_anom))
 
     for tr, te in loo.split(X_uk):
-        # Training: all France + UK-minus-one
         X_train = np.vstack([X_france, X_uk[tr]])
         y_train = np.concatenate([y_france_anom, y_uk_anom[tr]])
 
@@ -718,10 +560,6 @@ def experiment_pooled_anomaly(france_df, uk_df, weather_features, crop, alpha=1.
 
 
 def experiment_pooled_anomaly_tuned(france_df, uk_df, weather_features, crop):
-    """
-    Pooled anomaly with alpha tuning via nested LOOCV.
-    Also tries crop-specific features vs all features.
-    """
     best_result = None
     best_r2 = -np.inf
 
@@ -745,14 +583,8 @@ def experiment_pooled_anomaly_tuned(france_df, uk_df, weather_features, crop):
 
 
 def experiment_history_comparison(france_df, uk_df, weather_features, crop):
-    """
-    Compare extended history (1995-2018) vs original period (2004-2016)
-    to quantify the benefit of longer training history.
-    """
-    # Extended (1995-2018): use all France data
     extended = experiment_pooled_anomaly(france_df, uk_df, weather_features, crop)
 
-    # Original (2004-2016): trim France to same period as before
     france_trimmed = france_df[
         (france_df['Year'] >= 2004) & (france_df['Year'] <= 2016)
     ].copy()
@@ -765,29 +597,16 @@ def experiment_history_comparison(france_df, uk_df, weather_features, crop):
         'n_france_original': original['n_france'] if original else 0,
     }
 
-
-# ============================================================================
-# MAIN
-# ============================================================================
-
 def main():
-    print("=" * 70)
-    print("LONG-HISTORY DETRENDED ANOMALY TRANSFER")
-    print("=" * 70)
-
-    # --- Step 1: Extended weather ---
     print("\n--- Step 1: Extended E-OBS weather (1995-2018) ---")
     monthly_data = process_extended_eobs_weather()
 
-    # --- Step 2: Extended France yields ---
     print("\n--- Step 2: Extended France yields (1995-2018) ---")
     france_yields = load_extended_france_yields()
 
-    # --- Step 3: Seasonal features ---
     print("\n--- Step 3: Seasonal weather features ---")
     france_features = compute_extended_seasonal_features(monthly_data)
 
-    # --- Merge yields + weather ---
     print("\n--- Step 4: Merge yields + weather ---")
     france_merged = france_yields.merge(france_features, on=['Year', 'Region'], how='inner')
     print(f"  Merged: {len(france_merged)} rows "
@@ -797,26 +616,19 @@ def main():
         n = len(france_merged[france_merged['Crop'] == crop])
         print(f"    {crop:<16} {n} rows")
 
-    # --- Step 5: Load UK data ---
     print("\n--- Step 5: Load UK data ---")
     uk_regional, uk_spring, uk_winter = load_uk_data()
 
-    # --- Step 6: Run experiments ---
     print("\n--- Step 6: Transfer Experiments ---")
-    print("=" * 70)
 
     all_results = []
 
     for crop in CROPS:
-        print(f"\n  {'='*60}")
         print(f"  CROP: {crop}")
-        print(f"  {'='*60}")
 
-        # Get France data for this crop
         crop_in_data = CROP_NAME_IN_DATA.get(crop, crop)
         france_crop = france_merged[france_merged['Crop'] == crop_in_data].copy()
 
-        # Get UK data for this crop
         uk_crop = get_uk_crop_data(uk_regional, uk_spring, uk_winter, crop)
 
         if len(france_crop) < 10 or len(uk_crop) < 5:
@@ -828,19 +640,16 @@ def main():
         print(f"    UK: {len(uk_crop)} rows "
               f"({uk_crop['Year'].min()}-{uk_crop['Year'].max()})")
 
-        # Yield summary
         fr_mean = france_crop['Yield_t_per_ha'].mean()
         uk_mean = uk_crop['Yield_t_per_ha'].mean()
         print(f"    Mean yield: France={fr_mean:.2f}, UK={uk_mean:.2f} t/ha")
 
-        # --- Experiment A: UK-only baseline ---
         baseline = experiment_uk_only_baseline(uk_crop, ALL_WEATHER_FEATURES, crop)
         if baseline:
             print(f"\n    [A] UK-only LOOCV Ridge:")
             print(f"        R² = {baseline['uk_loocv_r2']:.3f}, "
                   f"RMSE = {baseline['uk_loocv_rmse']:.3f} t/ha")
 
-        # --- Experiment B: France anomaly → UK (direct transfer) ---
         transfer = experiment_france_anomaly_to_uk(
             france_crop, uk_crop, ALL_WEATHER_FEATURES, crop)
         if transfer:
@@ -851,7 +660,6 @@ def main():
             print(f"        UK transfer R²  = {transfer['transfer_r2']:.3f}, "
                   f"RMSE = {transfer['transfer_rmse']:.3f} t/ha")
 
-        # --- Experiment C: Pooled anomaly (France + UK) ---
         pooled = experiment_pooled_anomaly(
             france_crop, uk_crop, ALL_WEATHER_FEATURES, crop)
         if pooled:
@@ -860,7 +668,6 @@ def main():
                   f"RMSE = {pooled['pooled_anomaly_rmse']:.3f} t/ha")
             print(f"        ({pooled['n_france']} France + {pooled['n_uk']} UK samples)")
 
-        # --- Experiment D: France anomaly → UK with crop-specific features ---
         crop_feats = CROP_FEATURES.get(crop, [])
         transfer_cs = None
         if crop_feats:
@@ -872,7 +679,6 @@ def main():
                 print(f"        UK transfer R² = {transfer_cs['transfer_r2']:.3f}, "
                       f"RMSE = {transfer_cs['transfer_rmse']:.3f} t/ha")
 
-        # --- Experiment E: Rescaled transfer (all features) ---
         rescaled_all = experiment_rescaled_transfer(
             france_crop, uk_crop, ALL_WEATHER_FEATURES, crop)
         if rescaled_all:
@@ -884,7 +690,6 @@ def main():
                   f"R² = {rescaled_all['best_r2']:.3f}, "
                   f"RMSE = {rescaled_all['best_rmse']:.3f} t/ha")
 
-        # --- Experiment F: Rescaled transfer (crop-specific features) ---
         rescaled_cs = None
         if crop_feats:
             rescaled_cs = experiment_rescaled_transfer(
@@ -898,7 +703,6 @@ def main():
                       f"R² = {rescaled_cs['best_r2']:.3f}, "
                       f"RMSE = {rescaled_cs['best_rmse']:.3f} t/ha")
 
-        # --- Experiment G: Rescaled transfer — tune alpha + feature set ---
         best_rescaled = None
         best_rescaled_r2 = -np.inf
         for feat_name, feat_list in [('all', ALL_WEATHER_FEATURES),
@@ -922,7 +726,6 @@ def main():
                   f"RMSE = {best_rescaled['best_rmse']:.3f} t/ha")
             print(f"        Raw correlation = {best_rescaled['raw_correlation']:.3f}")
 
-        # --- Experiment H: Pooled anomaly with tuning ---
         tuned = experiment_pooled_anomaly_tuned(
             france_crop, uk_crop, ALL_WEATHER_FEATURES, crop)
         if tuned:
@@ -957,10 +760,7 @@ def main():
             result['rescaled_tuned_features'] = best_rescaled['tuned_features']
         all_results.append(result)
 
-    # --- Summary ---
-    print("\n\n" + "=" * 70)
-    print("SUMMARY: Long-History Detrended Anomaly Transfer")
-    print("=" * 70)
+    # Summary section
 
     print(f"\n  Table 1: Direct transfer approaches (UK R²)")
     print(f"  {'Crop':<16} {'Raw':>8} {'Raw CS':>8} {'Resc.':>8} "
@@ -999,17 +799,6 @@ def main():
               f"{r.get('rescaled_tuned_r2', float('nan')):>8.3f} "
               f"{r.get('pooled_anomaly_r2', float('nan')):>8.3f} "
               f"{r.get('tuned_r2', float('nan')):>8.3f}")
-
-    # Compare with previous domain adaptation results
-    print(f"\n  Previous best results (domain_adaptation.py, 2004-2016):")
-    print(f"    Ridge+Indicators pooled R² = 0.620")
-    print(f"    Bias Correction UK R²      = 0.154")
-    print(f"    Best UK transfer R²        = -3.026 (bias correction)")
-
-    print("\n" + "=" * 70)
-    print("DONE")
-    print("=" * 70)
-
 
 if __name__ == '__main__':
     main()

@@ -1,25 +1,3 @@
-"""
-Train Pooled Anomaly Models for Flask Application
-====================================================
-Uses the best approach from the cross-country transfer research:
-  - Detrend yields per (Region, Crop) to remove technology trends
-  - Standardise weather features to per-region z-scores
-  - Pool France + UK anomaly data
-  - Train Ridge regression on pooled anomalies
-  - Save models with metadata for z-score conversion at prediction time
-
-Results (Pooled Anomaly LOOCV, UK R²):
-  - Wheat:         0.696 (vs UK-only 0.284)
-  - Winter_Barley: 0.675 (vs UK-only 0.501)
-  - Spring_Barley: 0.764 (vs UK-only 0.221)
-  - Oats:          0.478 (vs UK-only 0.248)
-  - OSR:           0.585 (vs UK-only 0.196)
-
-Usage:
-    cd flask_app
-    python utils/train_pooled_models.py
-"""
-
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import Ridge
@@ -31,11 +9,6 @@ import os
 import json
 import warnings
 warnings.filterwarnings('ignore')
-
-
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -93,7 +66,7 @@ ALL_WEATHER_FEATURES = [
     'Heat_Stress', 'Cold_Spring', 'Extreme_Summer_Rain', 'Drought_Spring',
 ]
 
-# Key features to show in UI per crop (most important weather features)
+# Key features to show in UI per crop
 UI_FEATURES = {
     'Wheat': ['Winter_Sun', 'Summer_Sun', 'Grain_Filling_Rain',
               'Grain_Filling_Temp', 'Summer_Tmax'],
@@ -158,13 +131,8 @@ FEATURE_METADATA = {
     'Drought_Spring': {'unit': '', 'label': 'Spring Drought Events'},
 }
 
-
-# ============================================================================
-# DATA LOADING
-# ============================================================================
-
+# Loading of data
 def load_france_data(crop):
-    """Load France yield + weather data for a crop."""
     if crop == 'Spring_Barley':
         df = pd.read_csv(FRANCE_SPRING_BARLEY)
     elif crop == 'Winter_Barley':
@@ -177,9 +145,8 @@ def load_france_data(crop):
     df = df[(df['Year'] >= YEAR_START) & (df['Year'] <= YEAR_END)]
     return df
 
-
+# Same for UK
 def load_uk_data(crop):
-    """Load UK yield + weather data for a crop."""
     if crop == 'Spring_Barley':
         df = pd.read_csv(UK_SPRING_BARLEY)
     elif crop == 'Winter_Barley':
@@ -192,13 +159,8 @@ def load_uk_data(crop):
     df = df[(df['Year'] >= YEAR_START) & (df['Year'] <= YEAR_END)]
     return df
 
-
-# ============================================================================
-# DETRENDING & ANOMALISATION
-# ============================================================================
-
+# Detrending and anomalisation
 def detrend_yields(df):
-    """Remove linear yield trends per (Region, Crop) to isolate weather effects."""
     df = df.copy()
     df['Yield_trend'] = np.nan
     df['Yield_anomaly'] = np.nan
@@ -222,7 +184,6 @@ def detrend_yields(df):
 
 
 def compute_weather_stats(df, features):
-    """Compute per-region mean and std for weather features (for z-score conversion)."""
     stats = {}
     for region in df['Region'].unique():
         region_data = df[df['Region'] == region]
@@ -235,7 +196,7 @@ def compute_weather_stats(df, features):
                 }
         stats[region] = region_stats
 
-    # Also compute overall UK stats (for when region is unknown)
+    # Also compute overall UK stats
     overall = {}
     for feat in features:
         if feat in df.columns and df[feat].notna().any():
@@ -247,7 +208,7 @@ def compute_weather_stats(df, features):
 
     return stats
 
-
+# This function converts weather features to z-scores per region which lets us calculate make the detrending more precise
 def standardise_weather(df, features):
     """Convert weather features to per-region z-scores."""
     df = df.copy()
@@ -261,17 +222,9 @@ def standardise_weather(df, features):
     return df
 
 
-# ============================================================================
-# TRAINING
-# ============================================================================
-
+# Training of the pooled anomaly model
+# This trains the Ridge model and evaluates via LOOCV on the UK data. 
 def train_pooled_anomaly_model(france_df, uk_df, features, crop, alpha):
-    """
-    Train a pooled anomaly Ridge model and evaluate via LOOCV on UK data.
-
-    Training uses all France + UK detrended/anomalised data.
-    LOOCV holds out each UK point, trains on all France + remaining UK.
-    """
     # Select features with non-zero variance in both datasets
     available = []
     for f in features:
@@ -291,7 +244,6 @@ def train_pooled_anomaly_model(france_df, uk_df, features, crop, alpha):
     france_std = standardise_weather(france_dt, available)
     uk_std = standardise_weather(uk_dt, available)
 
-    # Clean
     france_clean = france_std.dropna(subset=available + ['Yield_anomaly'])
     uk_clean = uk_std.dropna(subset=available + ['Yield_anomaly', 'Yield_trend'])
 
@@ -306,7 +258,7 @@ def train_pooled_anomaly_model(france_df, uk_df, features, crop, alpha):
     uk_trends = uk_clean['Yield_trend'].values
     y_uk_actual = uk_clean['Yield_t_per_ha'].values
 
-    # --- LOOCV on UK (France always in training) ---
+    # loocv on uk
     loo = LeaveOneOut()
     uk_pred_yield = np.zeros(len(y_uk_anom))
 
@@ -327,7 +279,7 @@ def train_pooled_anomaly_model(france_df, uk_df, features, crop, alpha):
     loocv_r2 = r2_score(y_uk_actual, uk_pred_yield)
     loocv_rmse = np.sqrt(mean_squared_error(y_uk_actual, uk_pred_yield))
 
-    # --- Train final model on ALL data ---
+    # Train the final model on all data
     X_all = np.vstack([X_france, X_uk])
     y_all = np.concatenate([y_france, y_uk_anom])
 
@@ -352,28 +304,17 @@ def train_pooled_anomaly_model(france_df, uk_df, features, crop, alpha):
         'uk_base_yield': float(np.mean(y_uk_actual)),
     }
 
-
-# ============================================================================
-# MAIN
-# ============================================================================
-
 def main():
     models_dir = os.path.join(os.path.dirname(__file__), '..', 'models')
     os.makedirs(models_dir, exist_ok=True)
-
-    print("=" * 70)
-    print("TRAINING POOLED ANOMALY MODELS (France + UK)")
-    print("=" * 70)
 
     model_config = {}
     results = []
 
     for crop in CROPS:
-        print(f"\n{'='*60}")
         print(f"  CROP: {crop}")
         alpha = BEST_ALPHA[crop]
         print(f"  Alpha: {alpha}")
-        print(f"{'='*60}")
 
         # Load data
         france_df = load_france_data(crop)
@@ -384,7 +325,7 @@ def main():
         print(f"  UK: {len(uk_df)} rows "
               f"({uk_df['Year'].min()}-{uk_df['Year'].max()})")
 
-        # Compute UK weather stats BEFORE anomalisation (for prediction-time conversion)
+        # Compute UK weather stats
         uk_weather_stats = compute_weather_stats(uk_df, ALL_WEATHER_FEATURES)
 
         # Train pooled anomaly model
@@ -394,14 +335,6 @@ def main():
         if result is None:
             print(f"  FAILED: insufficient data")
             continue
-
-        print(f"\n  Results:")
-        print(f"    LOOCV R² (UK): {result['loocv_r2']:.3f}")
-        print(f"    LOOCV RMSE:    {result['loocv_rmse']:.3f} t/ha")
-        print(f"    Train R²:      {result['train_r2']:.3f}")
-        print(f"    Features used: {len(result['features'])}")
-        print(f"    Samples: {result['n_france']} France + {result['n_uk']} UK")
-
         # Save model, scaler, and metadata
         model_name = crop.lower()
         joblib.dump(result['model'], os.path.join(models_dir, f'{model_name}_model.pkl'))
@@ -480,11 +413,6 @@ def main():
     with open(config_path, 'w') as f:
         f.write(config_json)
     print(f"\nSaved model config: {config_path}")
-
-    # Summary
-    print("\n" + "=" * 70)
-    print("TRAINING SUMMARY — POOLED ANOMALY MODELS")
-    print("=" * 70)
     header = ("Crop             Alpha  N_FR  N_UK Feats  LOOCV R²  "
               "    RMSE  Train R²")
     print(f"\n{header}")
@@ -493,12 +421,7 @@ def main():
         print(f"{r['Crop']:<16} {r['Alpha']:>6.1f} {r['N_France']:>5} "
               f"{r['N_UK']:>5} {r['N_Features']:>5} {r['LOOCV_R2']:>10.3f} "
               f"{r['RMSE']:>8.3f} {r['Train_R2']:>10.3f}")
-
-    print(f"\nPrevious UK-only LOOCV R\u00b2:")
-    print(f"  Wheat: 0.355, W.Barley: 0.238, S.Barley: 0.221, "
-          f"Oats: 0.248, OSR: 0.196")
     print(f"\nAll models saved to: {os.path.abspath(models_dir)}")
-    print("=" * 70)
 
 
 if __name__ == '__main__':

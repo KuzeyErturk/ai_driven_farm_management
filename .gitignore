@@ -6,12 +6,16 @@ __pycache__/
 *.egg-info/
 .eggs/
 
+# Raw data (not distributed — regenerate processed datasets from the sources
+# listed in the README, or place raw files here locally). Only processed data
+# is committed.
+data/raw/
+data/france/raw/
+data/weather/
+
 # Large data files (E-OBS ~4GB, GADM ~180MB)
 data/weather/eobs/*.nc
 data/weather/gadm/nuts_2021.zip
-data/france/raw/france_ PANGAEA/
-data/france/raw/synthetic_monthly_weather*.pkl
-data/france/raw/Germany_raw_data.csv
 
 # Model files
 flask_app/models/*.pkl
@@ -30,7 +34,7 @@ src_backup_*/
 # Jupyter
 .ipynb_checkpoints/
 
-# Documents (optional - uncomment if you want to include them)
-# *.pdf
-# *.docx
-# *.xlsx
+# Documents (dissertation, reports, spreadsheets — kept out of the code repo)
+*.pdf
+*.docx
+*.xlsx

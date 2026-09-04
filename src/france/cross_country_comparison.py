@@ -1,19 +1,3 @@
-"""
-Cross-Country Comparison: UK vs France vs Germany Crop Yield Prediction
-=========================================================================
-Runs 5 experiments comparing crop yield models across three countries.
-
-Experiments:
-    1. Descriptive comparison — yield/weather distributions across countries
-    2. Transfer test — Train on one country, predict another
-    3. Country-only models — LOOCV on each country's data separately
-    4. Pooled models — LOOCV on combined data (with/without Country feature)
-    5. Feature importance comparison — Which weather variables matter where?
-
-Usage:
-    python src/france/cross_country_comparison.py
-"""
-
 import os
 import sys
 import pandas as pd
@@ -34,11 +18,7 @@ from config import PATHS, YEAR_START, YEAR_END
 sys.path.insert(0, PATHS['models'])
 from baseline_model_config import CROP_FEATURES, BASELINE_RESULTS, IMPROVED_RESULTS
 
-
-# ============================================================================
-# CONFIG
-# ============================================================================
-
+# First sections are pretty identical to domain_adaptation.py file
 CROPS = list(CROP_FEATURES.keys())  # Wheat, Winter_Barley, Spring_Barley, Oats, OSR
 
 BEST_MODELS = {
@@ -82,13 +62,7 @@ CROP_NAME_IN_DATA = {
 COUNTRIES = ['UK', 'France', 'Germany']
 COUNTRY_COLORS = {'UK': '#3498db', 'France': '#e74c3c', 'Germany': '#f39c12'}
 
-
-# ============================================================================
-# HELPERS
-# ============================================================================
-
 def loocv_evaluate(model_fn, X, y):
-    """LOOCV with per-fold scaling."""
     if len(y) < 5:
         return np.nan, np.nan, np.zeros(len(y))
     loo = LeaveOneOut()
@@ -102,9 +76,8 @@ def loocv_evaluate(model_fn, X, y):
         y_pred[te] = model.predict(X_te)
     return r2_score(y, y_pred), np.sqrt(mean_squared_error(y, y_pred)), y_pred
 
-
+# This is to train the model on one set to predictr another set
 def train_predict(model_fn, X_train, y_train, X_test):
-    """Train on one set, predict another."""
     sc = StandardScaler()
     X_tr = sc.fit_transform(X_train)
     X_te = sc.transform(X_test)
@@ -112,9 +85,8 @@ def train_predict(model_fn, X_train, y_train, X_test):
     model.fit(X_tr, y_train)
     return model.predict(X_te)
 
-
+# Load the dataset
 def load_datasets():
-    """Load all required datasets."""
     data = {}
 
     # UK
@@ -154,7 +126,6 @@ def load_datasets():
 
 
 def get_crop_data(datasets, crop, country):
-    """Get data for a specific crop and country."""
     if crop == 'Spring_Barley':
         key = 'spring'
     elif crop == 'Winter_Barley':
@@ -174,7 +145,6 @@ def get_crop_data(datasets, crop, country):
 
 
 def _get_pooled_df(datasets, crop):
-    """Get pooled DataFrame for a crop."""
     if crop == 'Spring_Barley':
         return datasets['pooled_spring'].copy()
     elif crop == 'Winter_Barley':
@@ -186,7 +156,6 @@ def _get_pooled_df(datasets, crop):
 
 
 def get_features_target(df, crop, use_all=False):
-    """Extract X, y for a crop. Drops features that are all NaN."""
     if use_all:
         features = ['Area_hectares'] + [f for f in ALL_WEATHER_FEATURES if f in df.columns]
     else:
@@ -195,20 +164,12 @@ def get_features_target(df, crop, use_all=False):
     available = [f for f in features if df[f].notna().any() and df[f].std() > 0.001]
     X = df[available].values
     y = df['Yield_t_per_ha'].values
-    # Drop rows with any NaN in features
+    # Drop rows with any nan in features
     mask = ~np.isnan(X).any(axis=1) & ~np.isnan(y)
     return X[mask], y[mask], available
 
 
-# ============================================================================
-# EXPERIMENT 1: DESCRIPTIVE COMPARISON
-# ============================================================================
-
 def experiment_1(datasets):
-    print("\n" + "=" * 75)
-    print("EXPERIMENT 1: DESCRIPTIVE COMPARISON (UK vs France vs Germany)")
-    print("=" * 75)
-
     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 
     for idx, crop in enumerate(CROPS):
@@ -266,17 +227,8 @@ def experiment_1(datasets):
     plt.tight_layout()
     plt.savefig(os.path.join(PATHS['plots'], 'france_uk_weather_comparison.png'), dpi=150, bbox_inches='tight')
     plt.close()
-    print("  Plots saved.")
-
-
-# ============================================================================
-# EXPERIMENT 2: TRANSFER TEST
-# ============================================================================
 
 def experiment_2(datasets):
-    print("\n" + "=" * 75)
-    print("EXPERIMENT 2: TRANSFER TEST")
-    print("=" * 75)
 
     pairs = [('uk', 'france'), ('uk', 'germany'), ('france', 'germany')]
     transfer_results = {}
@@ -329,16 +281,7 @@ def experiment_2(datasets):
 
     return transfer_results
 
-
-# ============================================================================
-# EXPERIMENT 3: COUNTRY-ONLY MODELS
-# ============================================================================
-
 def experiment_3(datasets):
-    print("\n" + "=" * 75)
-    print("EXPERIMENT 3: COUNTRY-ONLY MODELS (LOOCV)")
-    print("=" * 75)
-
     print(f"\n  {'Crop':<16}", end="")
     for country in ['uk', 'france', 'germany']:
         label = {'uk': 'UK', 'france': 'France', 'germany': 'Germany'}[country]
@@ -367,7 +310,6 @@ def experiment_3(datasets):
         print(row)
 
     # Averages
-    print("  " + "-" * 60)
     avg_row = f"  {'AVERAGE':<16}"
     for country in ['uk', 'france', 'germany']:
         vals = [country_results[c][country]['r2'] for c in CROPS
@@ -377,19 +319,10 @@ def experiment_3(datasets):
 
     return country_results
 
-
-# ============================================================================
-# EXPERIMENT 4: POOLED MODELS
-# ============================================================================
-
 def experiment_4(datasets):
-    print("\n" + "=" * 75)
-    print("EXPERIMENT 4: POOLED MODELS — ORIGINAL vs RIDGE-ALL-47")
-    print("=" * 75)
-
     pooled_results = {}
 
-    # --- Part A: Original features + original models ---
+    # Part A: Original features + original models
     print(f"\n  A) ORIGINAL FEATURES (hand-picked for UK)")
     print(f"  {'Crop':<16} {'N':>4} {'UK':>8} {'FR':>8} {'DE':>8} {'Pool+C':>8}")
     print("  " + "-" * 55)
@@ -430,7 +363,6 @@ def experiment_4(datasets):
     # --- Part B: All 47 features + Ridge ---
     print(f"\n  B) ALL 47 FEATURES + RIDGE (α=10)")
     print(f"  {'Crop':<16} {'N':>4} {'UK':>8} {'FR':>8} {'DE':>8} {'Pool+C':>8}")
-    print("  " + "-" * 55)
 
     for crop in CROPS:
         per_country_ridge = {}
@@ -474,7 +406,7 @@ def experiment_4(datasets):
         print(f"    {label:<22} UK={avgs[keys[0]]:.3f}  FR={avgs[keys[1]]:.3f}  "
               f"DE={avgs[keys[2]]:.3f}  Pooled+C={avgs[keys[3]]:.3f}")
 
-    # Plot — compare original vs Ridge
+    # Plot: compare original vs Ridge
     fig, ax = plt.subplots(figsize=(14, 6))
     x = np.arange(len(CROPS))
     w = 0.12
@@ -506,14 +438,7 @@ def experiment_4(datasets):
     return pooled_results
 
 
-# ============================================================================
-# EXPERIMENT 5: FEATURE IMPORTANCE
-# ============================================================================
-
 def experiment_5(datasets):
-    print("\n" + "=" * 75)
-    print("EXPERIMENT 5: FEATURE IMPORTANCE COMPARISON")
-    print("=" * 75)
 
     for crop in CROPS:
         features = [f for f in CROP_FEATURES[crop]]
@@ -523,7 +448,6 @@ def experiment_5(datasets):
             label = {'uk': 'UK', 'france': 'FR', 'germany': 'DE'}[country]
             print(f" {label:>8}", end="")
         print()
-        print("    " + "-" * 55)
 
         importances = {}
         for country in ['uk', 'france', 'germany']:
@@ -552,16 +476,8 @@ def experiment_5(datasets):
                     print(f" {'N/A':>8}", end="")
             print()
 
-
-# ============================================================================
-# MAIN
-# ============================================================================
-
+# Cross -country comparison : UK vs FRANCE vs GERMANY --- prediction using weather features
 def main():
-    print("=" * 75)
-    print("CROSS-COUNTRY COMPARISON: UK vs FRANCE vs GERMANY")
-    print("Crop Yield Prediction with Weather Features")
-    print("=" * 75)
 
     os.makedirs(PATHS['plots'], exist_ok=True)
 
@@ -574,11 +490,6 @@ def main():
     country_results = experiment_3(datasets)
     pooled_results = experiment_4(datasets)
     experiment_5(datasets)
-
-    # Final summary
-    print("\n" + "=" * 75)
-    print("FINAL SUMMARY")
-    print("=" * 75)
 
     print(f"\n  A) ORIGINAL APPROACH (UK hand-picked features, per-crop models)")
     print(f"  {'Crop':<16} | {'UK':>6} | {'FR':>6} | {'DE':>6} | {'Pool+C':>8}")
@@ -629,11 +540,6 @@ def main():
 
   Plots: {PATHS['plots']}/
 """)
-
-    print("=" * 75)
-    print("DONE")
-    print("=" * 75)
-
 
 if __name__ == '__main__':
     main()

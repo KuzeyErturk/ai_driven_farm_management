@@ -1,4 +1,3 @@
-# Agricultural AI Crop Yield Prediction
 # Core dependencies
 
 # Data manipulation

@@ -1,24 +1,3 @@
-"""
-Process E-OBS Weather Data → Monthly Averages per Macro-Region
-================================================================
-Extracts daily Tmax, Tmin, Precipitation from E-OBS gridded data,
-computes monthly aggregates, and derives frost days from Tmin.
-
-Uses NUTS3 administrative boundaries to spatially average grid cells
-within each macro-region (4 French + 4 German regions).
-
-Input:
-    data/weather/eobs/{tx,tn,rr}_{1995-2010,2011-2025}.nc
-    data/weather/gadm/NUTS_RG_01M_2021_4326_LEVL_3.geojson
-
-Output:
-    data/france/raw/eobs_monthly_weather_{region}.csv
-    (for each of the 8 macro-regions)
-
-Usage:
-    python src/france/process_eobs_weather.py
-"""
-
 import os
 import sys
 import numpy as np
@@ -39,55 +18,45 @@ GADM_PATH = os.path.join(PATHS['france_raw'], '..', '..', 'weather', 'gadm',
 MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
                'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
-# NUTS3 prefix → macro-region mapping
-# French NUTS3 codes start with FR, German with DE
+# NUTS3 match with macro-region mapping
+# French NUTS3 code begin with FR, German with DE
 NUTS3_TO_REGION = {
-    # --- France: Nord ---
+    # Nord ( france ) meaning north region
     'FR101': 'Nord', 'FR102': 'Nord', 'FR103': 'Nord', 'FR104': 'Nord',
     'FR105': 'Nord', 'FR106': 'Nord', 'FR107': 'Nord', 'FR108': 'Nord',
-    'FRE11': 'Nord', 'FRE12': 'Nord',  # Nord, Pas-de-Calais
-    'FRE21': 'Nord', 'FRE22': 'Nord', 'FRE23': 'Nord',  # Aisne, Oise, Somme
-    'FRD21': 'Nord', 'FRD22': 'Nord',  # Eure, Seine-Maritime
+    'FRE11': 'Nord', 'FRE12': 'Nord',
+    'FRE21': 'Nord', 'FRE22': 'Nord', 'FRE23': 'Nord',
+    'FRD21': 'Nord', 'FRD22': 'Nord', 
 
-    # --- France: Ouest ---
-    'FRD11': 'Ouest', 'FRD12': 'Ouest', 'FRD13': 'Ouest',  # Calvados, Manche, Orne
-    'FRH01': 'Ouest', 'FRH02': 'Ouest', 'FRH03': 'Ouest', 'FRH04': 'Ouest',  # Bretagne
-    'FRG01': 'Ouest', 'FRG02': 'Ouest', 'FRG03': 'Ouest', 'FRG04': 'Ouest', 'FRG05': 'Ouest',  # Pays de la Loire
-    'FRI31': 'Ouest', 'FRI32': 'Ouest', 'FRI33': 'Ouest', 'FRI34': 'Ouest',  # Poitou-Charentes
+    # France: Ouest meaning west
+    'FRD11': 'Ouest', 'FRD12': 'Ouest', 'FRD13': 'Ouest',  
+    'FRH01': 'Ouest', 'FRH02': 'Ouest', 'FRH03': 'Ouest', 'FRH04': 'Ouest',  
+    'FRG01': 'Ouest', 'FRG02': 'Ouest', 'FRG03': 'Ouest', 'FRG04': 'Ouest', 'FRG05': 'Ouest',
+    'FRI31': 'Ouest', 'FRI32': 'Ouest', 'FRI33': 'Ouest', 'FRI34': 'Ouest', 
 
-    # --- France: Est ---
-    'FRF21': 'Est', 'FRF22': 'Est', 'FRF23': 'Est', 'FRF24': 'Est',  # Champagne-Ardenne
-    'FRF31': 'Est', 'FRF32': 'Est', 'FRF33': 'Est', 'FRF34': 'Est',  # Lorraine
-    'FRF11': 'Est', 'FRF12': 'Est',  # Alsace
-    'FRC11': 'Est', 'FRC12': 'Est', 'FRC13': 'Est', 'FRC14': 'Est',  # Bourgogne
-    'FRC21': 'Est', 'FRC22': 'Est', 'FRC23': 'Est', 'FRC24': 'Est',  # Franche-Comté
-    'FRB01': 'Est', 'FRB02': 'Est', 'FRB03': 'Est', 'FRB04': 'Est', 'FRB05': 'Est', 'FRB06': 'Est',  # Centre
+    # France: Est - east   
+    'FRF31': 'Est', 'FRF32': 'Est', 'FRF33': 'Est', 'FRF34': 'Est',
+    'FRF11': 'Est', 'FRF12': 'Est',
+    'FRC11': 'Est', 'FRC12': 'Est', 'FRC13': 'Est', 'FRC14': 'Est',
+    'FRC21': 'Est', 'FRC22': 'Est', 'FRC23': 'Est', 'FRC24': 'Est',
+    'FRB01': 'Est', 'FRB02': 'Est', 'FRB03': 'Est', 'FRB04': 'Est', 'FRB05': 'Est', 'FRB06': 'Est', 
 
-    # --- France: Sud ---
-    'FRI11': 'Sud', 'FRI12': 'Sud', 'FRI13': 'Sud', 'FRI14': 'Sud', 'FRI15': 'Sud',  # Aquitaine
-    'FRI21': 'Sud', 'FRI22': 'Sud', 'FRI23': 'Sud',  # Limousin
-    'FRJ21': 'Sud', 'FRJ22': 'Sud', 'FRJ23': 'Sud', 'FRJ24': 'Sud', 'FRJ25': 'Sud',  # Midi-Pyrénées
+    # France: Sud    south
+    'FRI21': 'Sud', 'FRI22': 'Sud', 'FRI23': 'Sud',
+    'FRJ21': 'Sud', 'FRJ22': 'Sud', 'FRJ23': 'Sud', 'FRJ24': 'Sud', 'FRJ25': 'Sud', 
     'FRJ26': 'Sud', 'FRJ27': 'Sud', 'FRJ28': 'Sud',
-    'FRJ11': 'Sud', 'FRJ12': 'Sud', 'FRJ13': 'Sud', 'FRJ14': 'Sud', 'FRJ15': 'Sud',  # Languedoc-Roussillon
-    'FRL01': 'Sud', 'FRL02': 'Sud', 'FRL03': 'Sud', 'FRL04': 'Sud', 'FRL05': 'Sud', 'FRL06': 'Sud',  # PACA
-    'FRK21': 'Sud', 'FRK22': 'Sud', 'FRK23': 'Sud', 'FRK24': 'Sud', 'FRK25': 'Sud',  # Rhône-Alpes
+    'FRJ11': 'Sud', 'FRJ12': 'Sud', 'FRJ13': 'Sud', 'FRJ14': 'Sud', 'FRJ15': 'Sud',  
+    'FRL01': 'Sud', 'FRL02': 'Sud', 'FRL03': 'Sud', 'FRL04': 'Sud', 'FRL05': 'Sud', 'FRL06': 'Sud', 
+    'FRK21': 'Sud', 'FRK22': 'Sud', 'FRK23': 'Sud', 'FRK24': 'Sud', 'FRK25': 'Sud', 
     'FRK26': 'Sud', 'FRK27': 'Sud', 'FRK28': 'Sud',
-    'FRK11': 'Sud', 'FRK12': 'Sud', 'FRK13': 'Sud', 'FRK14': 'Sud',  # Auvergne
-    'FRM01': 'Sud', 'FRM02': 'Sud',  # Corsica
+    'FRK11': 'Sud', 'FRK12': 'Sud', 'FRK13': 'Sud', 'FRK14': 'Sud', 
+    'FRM01': 'Sud', 'FRM02': 'Sud',
 
-    # --- Germany: Nord_DE (Schleswig-Holstein, Niedersachsen, MV, Hamburg, Bremen) ---
-    # DE6=Hamburg, DE5=Bremen, DE9=Niedersachsen, DEF=Schleswig-Holstein, DE8=MV
-    # --- Germany: West_DE (NRW, Rheinland-Pfalz, Saarland, Hessen) ---
-    # DEA=NRW, DEB=Rheinland-Pfalz, DEC=Saarland, DE7=Hessen
-    # --- Germany: Ost_DE (Brandenburg, Sachsen-Anhalt, Sachsen, Thüringen, Berlin) ---
-    # DE4=Brandenburg, DEE=Sachsen-Anhalt, DED=Sachsen, DEG=Thüringen, DE3=Berlin
-    # --- Germany: Sued_DE (Bayern, Baden-Württemberg) ---
-    # DE1=Baden-Württemberg, DE2=Bayern
 }
 
 
 def get_germany_region(nuts_id):
-    """Map German NUTS3 ID to macro-region using first 3 chars."""
+    # Mapping German regions to match using the first 3 characters
     prefix = nuts_id[:3]
     mapping = {
         'DEF': 'Nord_DE', 'DE9': 'Nord_DE', 'DE8': 'Nord_DE',
@@ -100,13 +69,7 @@ def get_germany_region(nuts_id):
 
 
 def build_region_masks(nuts3_gdf, eobs_lats, eobs_lons):
-    """
-    For each macro-region, find which E-OBS grid cells fall within it.
-    Returns dict of {region_name: boolean mask (lat, lon)}.
-    """
-    print("  Building spatial masks for macro-regions...")
 
-    # Create grid of points
     lon_grid, lat_grid = np.meshgrid(eobs_lons, eobs_lats)
 
     # Assign each NUTS3 region to a macro-region
@@ -121,8 +84,6 @@ def build_region_masks(nuts3_gdf, eobs_lats, eobs_lons):
         else:
             macro_regions.append(None)
     nuts3_gdf['macro_region'] = macro_regions
-
-    # Dissolve NUTS3 polygons into macro-regions
     valid = nuts3_gdf[nuts3_gdf['macro_region'].notna()]
     dissolved = valid.dissolve(by='macro_region')
 
@@ -131,16 +92,13 @@ def build_region_masks(nuts3_gdf, eobs_lats, eobs_lons):
 
     for region in all_regions:
         if region not in dissolved.index:
-            print(f"    WARNING: No geometry for {region}")
+            print(f"{region}") # Error log
             continue
 
         geom = dissolved.loc[region, 'geometry']
 
-        # Sample grid points at 0.5° spacing to speed up (still covers region well)
-        # Then use contains() for a subset of points
         mask = np.zeros((len(eobs_lats), len(eobs_lons)), dtype=bool)
 
-        # Use vectorized approach: check which grid cell centers are inside the region
         from shapely import contains_xy
         mask = contains_xy(geom, lon_grid, lat_grid)
 
@@ -150,16 +108,14 @@ def build_region_masks(nuts3_gdf, eobs_lats, eobs_lons):
 
     return masks
 
-
+# Loading EOBS variables
 def load_eobs_variable(var_name, time_start, time_end, lat_slice=None, lon_slice=None):
-    """Load E-OBS variable, concatenating time chunks. Crops spatially to save memory."""
     datasets = []
 
-    # Try chunked files first (v32), then full file (v31)
     candidates = []
     for period in ['1995-2010', '2011-2025']:
         candidates.append(os.path.join(EOBS_DIR, f'{var_name}_{period}.nc'))
-    # Also check for full files (any version)
+    # Also check for full files
     import glob
     candidates += glob.glob(os.path.join(EOBS_DIR, f'{var_name}_ens_mean_*.nc'))
 
@@ -173,12 +129,11 @@ def load_eobs_variable(var_name, time_start, time_end, lat_slice=None, lon_slice
                 ds = ds.sel(longitude=lon_slice)
             if len(ds.time) > 0:
                 datasets.append(ds)
-                # If full file covers the whole range, no need for chunks
                 if len(ds.time) > 3000:
                     break
 
     if not datasets:
-        raise FileNotFoundError(f"No E-OBS files found for {var_name} in {EOBS_DIR}")
+        raise FileNotFoundError(f"no EOBS file {var_name} in {EOBS_DIR}")
 
     if len(datasets) == 1:
         return datasets[0]
@@ -188,41 +143,24 @@ def load_eobs_variable(var_name, time_start, time_end, lat_slice=None, lon_slice
 
 def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31',
                             lat_slice=None, lon_slice=None):
-    """
-    Compute monthly weather statistics per macro-region from E-OBS data.
-    Returns dict of {region: DataFrame} with monthly Tmax, Tmin, Rain, Frost.
-    """
-    print("\n  Loading E-OBS data and computing monthly averages...")
-
-    # Load variables (cropped spatially)
-    print("    Loading Tmax...")
     ds_tx = load_eobs_variable('tx', time_start, time_end, lat_slice, lon_slice)
-    print("    Loading Tmin...")
     ds_tn = load_eobs_variable('tn', time_start, time_end, lat_slice, lon_slice)
-    print("    Loading Precipitation...")
     ds_rr = load_eobs_variable('rr', time_start, time_end, lat_slice, lon_slice)
 
-    # Try loading radiation (for sunshine estimation)
     ds_qq = None
     try:
-        print("    Loading Radiation (qq)...")
         ds_qq = load_eobs_variable('qq', time_start, time_end, lat_slice, lon_slice)
-        print("    Radiation loaded successfully!")
     except FileNotFoundError:
-        print("    Radiation not available — sunshine features will be estimated.")
+        print("no radiation")
 
-    tx = ds_tx['tx']  # Daily max temperature (°C)
-    tn = ds_tn['tn']  # Daily min temperature (°C)
-    rr = ds_rr['rr']  # Daily precipitation (mm)
+    tx = ds_tx['tx']  # daily max temp
+    tn = ds_tn['tn']  # daily min temp
+    rr = ds_rr['rr']  # daily precipiation ( rainfall)
 
     all_regions = {}
 
     for region, mask in masks.items():
-        print(f"    Processing {region}...")
-
-        # Apply mask using numpy (avoids xarray coordinate alignment issues)
-        # mask shape: (n_lat, n_lon), data shape: (n_time, n_lat, n_lon)
-        mask3d = mask[np.newaxis, :, :]  # broadcast to (1, n_lat, n_lon)
+        mask3d = mask[np.newaxis, :, :]
 
         tx_vals = tx.values.copy()
         tx_vals[~np.broadcast_to(mask3d, tx_vals.shape)] = np.nan
@@ -236,12 +174,11 @@ def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31
         rr_vals[~np.broadcast_to(mask3d, rr_vals.shape)] = np.nan
         rr_region = np.nanmean(rr_vals, axis=(1, 2))
 
-        # Frost: daily fraction of masked cells with Tmin < 0
         tn_frost = (tn_vals < 0).astype(float)
         tn_frost[~np.broadcast_to(mask3d, tn_frost.shape)] = np.nan
         frost_region = np.nanmean(tn_frost, axis=(1, 2))
 
-        # Radiation → sunshine hours conversion
+        # radiation to sunshine mapping
         if ds_qq is not None:
             qq = ds_qq['qq']
             qq_vals = qq.values.copy()
@@ -250,10 +187,7 @@ def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31
         else:
             qq_region = None
 
-        # Get time index from the dataset
         times = pd.DatetimeIndex(tx.time.values)
-
-        # Build daily DataFrame for aggregation
         daily_df = pd.DataFrame({
             'time': times,
             'tmax': tx_region,
@@ -263,19 +197,11 @@ def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31
         })
 
         if qq_region is not None:
-            # Convert W/m² to approximate sunshine hours per day
-            # Method: sunshine ≈ qq / max_possible_radiation * day_length
-            # Simplified: at European latitudes, ~1000 W/m² is clear-sky max
-            # Average over a day: ~300 W/m² on a sunny day ≈ 10-12 sunshine hours
-            # Empirical conversion: sun_hours ≈ qq * day_length / clear_sky_radiation
-            # Using simplified ratio: sun_hours ≈ qq / 25 (empirical for 45-55°N)
-            # This gives ~4h for 100 W/m², ~8h for 200 W/m², ~12h for 300 W/m²
             daily_df['sunshine'] = qq_region / 25.0
 
         daily_df['year'] = daily_df['time'].dt.year
         daily_df['month'] = daily_df['time'].dt.month
 
-        # Monthly aggregation
         agg_dict = {
             'tmax': ('tmax', 'mean'),
             'tmin': ('tmin', 'mean'),
@@ -287,7 +213,6 @@ def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31
 
         monthly = daily_df.groupby(['year', 'month']).agg(**agg_dict).reset_index()
 
-        # Build year × month structure
         years = range(YEAR_START, YEAR_END + 1)
         rows = []
         for year in years:
@@ -326,11 +251,7 @@ def compute_monthly_weather(masks, time_start='2004-01-01', time_end='2016-12-31
 
 
 def main():
-    print("=" * 70)
-    print("PROCESS E-OBS WEATHER → MONTHLY AVERAGES PER REGION")
-    print("=" * 70)
 
-    # Load NUTS3 boundaries
     print(f"\n  Loading NUTS3 boundaries: {GADM_PATH}")
     nuts3 = gpd.read_file(GADM_PATH)
 
@@ -340,7 +261,6 @@ def main():
     nuts3_fg = nuts3_fg[~nuts3_fg['NUTS_ID'].str.startswith('FRY')]
     print(f"  France+Germany NUTS3 regions: {len(nuts3_fg)}")
 
-    # Load E-OBS coordinates (from any file), cropped to France+Germany bbox
     sample_path = os.path.join(EOBS_DIR, 'tx_1995-2010.nc')
     ds_sample = xr.open_dataset(sample_path)
     lat_sl = slice(42, 55.5)
@@ -348,23 +268,19 @@ def main():
     lats = ds_sample.latitude.sel(latitude=lat_sl).values
     lons = ds_sample.longitude.sel(longitude=lon_sl).values
     ds_sample.close()
-    # Store slices for data loading
     lat_slice = lat_sl
     lon_slice = lon_sl
 
     print(f"  Grid: {len(lats)} lat x {len(lons)} lon points")
 
-    # Build spatial masks
     masks = build_region_masks(nuts3_fg, lats, lons)
 
     if not masks:
         print("  ERROR: No masks created. Check NUTS3 mapping.")
         return
 
-    # Compute monthly weather (pass lat/lon slices for cropping)
     monthly_data = compute_monthly_weather(masks, lat_slice=lat_slice, lon_slice=lon_slice)
 
-    # Save
     raw_dir = PATHS['france_raw']
     for region, df in monthly_data.items():
         csv_path = os.path.join(raw_dir, f'eobs_monthly_weather_{region}.csv')
@@ -376,11 +292,6 @@ def main():
         print(f"    {region} 2010 Jul: Tmax={sample_year.get('tmax_jul', 'N/A'):.1f}°C, "
               f"Tmin={sample_year.get('tmin_jul', 'N/A'):.1f}°C, "
               f"Rain={sample_year.get('rain_jul', 'N/A'):.0f}mm")
-
-    print("\n" + "=" * 70)
-    print("DONE")
-    print("=" * 70)
-
 
 if __name__ == '__main__':
     main()

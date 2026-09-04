@@ -1,18 +1,9 @@
-"""
-Agricultural AI Flask Application
-==================================
-Web interface for crop yield prediction and scenario analysis.
-Uses pooled anomaly models (France + UK) from the cross-country transfer research.
-"""
-
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
 import joblib
 import os
 import json
-
-from utils.risk_analyzer import RiskAnalyzer
 
 app = Flask(__name__)
 
@@ -26,18 +17,6 @@ _config_path = os.path.join(os.path.dirname(__file__), 'models', 'model_config.j
 if os.path.exists(_config_path):
     with open(_config_path) as f:
         MODEL_CONFIG = json.load(f)
-
-# Legacy weather ranges for risk page (which uses its own heuristic scoring)
-WEATHER_RANGES = {
-    'Summer_Rain': {'min': 100, 'max': 400, 'default': 200, 'unit': 'mm'},
-    'Summer_Sun': {'min': 400, 'max': 700, 'default': 550, 'unit': 'hours'},
-    'Winter_Frost': {'min': 10, 'max': 50, 'default': 25, 'unit': 'days'},
-    'Spring_Rain': {'min': 100, 'max': 300, 'default': 175, 'unit': 'mm'},
-    'Spring_Frost': {'min': 0, 'max': 20, 'default': 8, 'unit': 'days'},
-    'Summer_Tmax': {'min': 18, 'max': 26, 'default': 21, 'unit': '°C'},
-    'Grain_Filling_Rain': {'min': 50, 'max': 250, 'default': 150, 'unit': 'mm'},
-    'Grain_Filling_Sun': {'min': 200, 'max': 500, 'default': 350, 'unit': 'hours'},
-}
 
 # Pre-load models, scalers, and metadata
 _models = {}
@@ -56,8 +35,8 @@ for crop_name in CROPS:
 
 
 @app.route('/')
+# Main page
 def index():
-    """Main page with prediction form."""
     # Pass initial features for the default crop (Wheat)
     default_crop = 'Wheat'
     initial_features = MODEL_CONFIG.get(default_crop, {})
@@ -89,14 +68,9 @@ def predict():
         model_type = crop_config.get('model_type', 'Unknown')
 
         if crop in _models and crop in _scalers and crop in _meta:
-            # Pooled anomaly prediction flow:
-            # 1. Convert user's raw weather values to z-scores
-            # 2. Build full feature vector (0 for non-specified features)
-            # 3. Scale and predict yield anomaly
-            # 4. Add UK base yield
             prediction = predict_pooled_anomaly(crop, region, data)
         elif crop in _models and crop in _scalers:
-            # Legacy model (no meta file): direct feature scaling
+            # Legacy model
             feature_names = list(crop_config.get('features', {}).keys())
             features = []
             for feat in feature_names:
@@ -130,18 +104,6 @@ def predict():
 
 
 def predict_pooled_anomaly(crop, region, data):
-    """
-    Pooled anomaly prediction: convert raw weather to z-scores,
-    predict yield anomaly, add UK base yield.
-
-    The model was trained on detrended yield anomalies with weather z-scores.
-    For prediction:
-      - Convert user-provided raw weather values to z-scores using
-        saved UK regional statistics (mean, std per feature)
-      - Non-specified features default to z-score 0 (average conditions)
-      - Predict the yield anomaly
-      - Add UK base yield to get final prediction
-    """
     meta = _meta[crop]
     model = _models[crop]
     scaler = _scalers[crop]
@@ -160,7 +122,7 @@ def predict_pooled_anomaly(crop, region, data):
         feat_stats = region_stats.get(feat, uk_stats.get('_overall', {}).get(feat))
 
         if raw_value is not None and feat_stats is not None:
-            # User provided this feature — convert to z-score
+            # User provided this feature and we convert it to z-score
             mean = feat_stats['mean']
             std = feat_stats['std']
             if std > 0.001:
@@ -169,10 +131,10 @@ def predict_pooled_anomaly(crop, region, data):
                 z = 0.0
             z_scores.append(z)
         else:
-            # Feature not provided — assume average conditions (z=0)
+            # Feature not provided
             z_scores.append(0.0)
 
-    # Scale z-scores using the training-fitted StandardScaler and predict
+    # Scale z-scores using the StandardScaler and predict
     z_array = np.array([z_scores])
     z_scaled = scaler.transform(z_array)
     predicted_anomaly = model.predict(z_scaled)[0]
@@ -184,7 +146,6 @@ def predict_pooled_anomaly(crop, region, data):
 
 
 def calculate_fallback_prediction(crop, data):
-    """Simple rule-based prediction when model not available."""
     base_yields = {
         'Wheat': 8.0,
         'Winter_Barley': 6.5,
@@ -228,7 +189,6 @@ def calculate_fallback_prediction(crop, data):
 
 
 def calculate_confidence(data):
-    """Calculate prediction confidence based on weather extremity."""
     extreme_count = 0
 
     # Check various weather features if they exist in the input
@@ -255,7 +215,6 @@ def calculate_confidence(data):
 
 
 def detect_extreme_conditions(data):
-    """Detect which weather conditions are extreme and provide recommendations."""
     extremes = []
 
     summer_rain = float(data.get('Summer_Rain', data.get('summer_rain', 200)))
@@ -296,7 +255,6 @@ def detect_extreme_conditions(data):
 
 
 def get_historical_average(crop):
-    """Get historical average yield for crop from model metadata."""
     crop_config = MODEL_CONFIG.get(crop, {})
     base_yield = crop_config.get('uk_base_yield')
     if base_yield is not None:
@@ -311,60 +269,10 @@ def get_historical_average(crop):
 
 @app.route('/scenario')
 def scenario():
-    """Scenario analysis page with interactive sliders."""
     return render_template('scenario.html',
                            crops=CROPS,
-                           model_config=MODEL_CONFIG)
-
-
-@app.route('/risk')
-def risk():
-    """Risk assessment dashboard page."""
-    return render_template('risk.html',
-                           crops=CROPS,
                            regions=REGIONS,
-                           weather_ranges=WEATHER_RANGES)
-
-
-@app.route('/api/risk', methods=['POST'])
-def calculate_risk():
-    """API endpoint for risk assessment calculation."""
-    try:
-        data = request.get_json()
-        crop = data.get('crop', 'Wheat')
-        region = data.get('region', 'England')
-        hectares = float(data.get('hectares', 100))
-        years_ahead = int(data.get('years_ahead', 10))
-
-        # Get weather inputs (accept both old 8-feature and new crop-specific)
-        weather = {
-            'Summer_Rain': float(data.get('Summer_Rain', 200)),
-            'Summer_Sun': float(data.get('Summer_Sun', 550)),
-            'Winter_Frost': float(data.get('Winter_Frost', 25)),
-            'Spring_Rain': float(data.get('Spring_Rain', 175)),
-            'Spring_Frost': float(data.get('Spring_Frost', 8)),
-            'Summer_Tmax': float(data.get('Summer_Tmax', 21)),
-            'Grain_Filling_Rain': float(data.get('Grain_Filling_Rain', 150)),
-            'Grain_Filling_Sun': float(data.get('Grain_Filling_Sun', 350)),
-        }
-
-        analyzer = RiskAnalyzer()
-
-        risk_assessment = analyzer.calculate_risk_score(weather, crop)
-        climate_projection = analyzer.project_climate_impact(crop, years_ahead)
-        financial_risk = analyzer.calculate_financial_risk(crop, region, weather, hectares)
-        historical_trend = analyzer.get_historical_risk_trend(crop)
-
-        return jsonify({
-            'success': True,
-            'risk_assessment': risk_assessment,
-            'climate_projection': climate_projection,
-            'financial_risk': financial_risk,
-            'historical_trend': historical_trend
-        })
-
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+                           model_config=MODEL_CONFIG)
 
 
 if __name__ == '__main__':

@@ -1,153 +1,106 @@
-# Agricultural AI: UK Crop Yield Prediction
+# AI-Driven Crop Yield Prediction System
 
-A machine learning system for predicting UK crop yields based on seasonal weather features.
+Kuzey Erturk (F330035) — Final Year Project
+Supervised by Prof. Nina Dethlefs
 
-## Project Overview
+## Overview
 
-This dissertation project develops ML models to predict yields for major UK arable crops (Wheat, Barley, Oats, Oilseed Rape) using weather data from 2004-2024. Key contributions include:
+A machine learning system for predicting UK crop yields (Wheat, Winter Barley, Spring Barley, Oats, Oilseed Rape) from seasonal weather features. The project develops a **detrended anomaly transfer** approach that pools weather–yield relationships across European countries (UK, France, Ireland, Netherlands, Belgium, Denmark, Germany) to overcome the UK's limited training data (13 years, 9 regions).
 
-- **47 seasonal weather features** engineered from Met Office data
-- **Crop-specific modeling** with winter/spring barley separation
-- **Extreme year handling** using hybrid detection approach
-- **Flask web interface** for interactive predictions and scenario analysis
+Key contributions:
+- **Cross-country pooled anomaly models** that improve UK prediction R² from 0.20–0.35 (UK-only) to 0.44–0.76 (pooled)
+- **Domain adaptation comparison** of methods (Ridge + indicators, MixedLM, bias correction, CORAL)
+- **SHAP explainability analysis** comparing UK-only vs pooled vs cross-country feature importance
+- **Flask web application** for interactive yield prediction and scenario analysis
 
 ## Project Structure
 
 ```
 agricultural-ai-project/
 ├── src/
-│   ├── data/              # Data processing modules
-│   │   ├── all_uk.py
-│   │   └── process_crops.py
+│   ├── features/                       # Feature engineering
+│   │   ├── seasonal_features.py        # Seasonal weather features from Met Office data
+│   │   └── barley_features.py          # Winter/Spring barley separation
 │   │
-│   ├── features/          # Feature engineering
-│   │   ├── seasonal_features.py   # 47 seasonal features
-│   │   └── barley_features.py     # Barley-specific features
+│   ├── models/                         # UK-only modelling
+│   │   ├── baseline_model_config.py    # Crop-specific model selection (RF/Ridge/SVR)
+│   │   ├── crop_models.py              # Per-crop model training and evaluation
+│   │   ├── barley_models.py            # Winter/Spring barley analysis
+│   │   ├── regional_models.py          # Regional variation analysis
+│   │   ├── model_improvements.py       # Feature selection and tuning
+│   │   ├── shap_analysis.py            # SHAP explainability (3-part analysis)
+│   │   └── dissertation_final_results.py  # Final results for dissertation tables
 │   │
-│   └── models/            # ML models
-│       ├── barley_models.py       # Winter/Spring barley separation
-│       ├── crop_models.py         # Per-crop modeling
-│       ├── regional_models.py     # Regional analysis
-│       ├── ensemble.py            # Extreme year handling
-│       ├── day2_modelling.py      # Main modeling pipeline
-│       └── day2_fixedModel.py     # Data leakage fix
+│   └── france/                         # Cross-country transfer learning
+│       ├── config.py                   # Paths, NUTS mappings, crop codes
+│       ├── download_yields.py          # Eurostat yield data download
+│       ├── build_france_datasets.py    # France dataset construction
+│       ├── add_new_countries.py        # IE/NL/BE/DK data pipeline (Eurostat + E-OBS)
+│       ├── process_eobs_weather.py     # E-OBS weather data processing
+│       ├── feature_selection.py        # Decorrelated feature selection for MixedLM
+│       ├── cross_country_comparison.py # Pooling experiments (FR + UK)
+│       ├── domain_adaptation.py        # Domain adaptation methods comparison
+│       ├── long_history_transfer.py    # Detrended anomaly transfer (best method)
+│       └── scenario_adaptive_selection.py  # Adaptive source selection (negative result)
 │
-├── flask_app/             # Web application
-│   ├── app.py             # Flask application
-│   ├── models/            # Saved trained models (.pkl)
-│   ├── templates/         # HTML templates
-│   ├── static/            # CSS, JS, images
-│   └── utils/             # Prediction & visualization utilities
+├── flask_app/                          # Web application
+│   ├── app.py                          # Flask routes and prediction logic
+│   ├── models/                         # Trained models: feature_info.json + model_config.json
+│   │                                   #   (the .pkl model/scaler files are generated locally
+│   │                                   #    by utils/train_pooled_models.py — not committed)
+│   ├── templates/                      # index.html (prediction), scenario.html (scenario analysis)
+│   ├── static/css/                     # Stylesheet
+│   └── utils/
+│       └── train_pooled_models.py      # Trains FR+UK pooled anomaly models for the app
 │
-├── data/
-│   ├── raw/               # Original source data
-│   │   ├── yield.csv
-│   │   ├── temp.csv
-│   │   ├── rainfall.csv
-│   │   └── pesticides.csv
-│   │
-│   ├── processed/         # Processed datasets
-│   │   ├── regional_crop_yield_weather_2004_2024.csv  # Main dataset
-│   │   ├── uk_crop_yield_with_seasonal_features_2004_2024.csv
-│   │   ├── spring_barley_with_weather.csv
-│   │   └── winter_barley_with_weather.csv
-│   │
-│   └── outputs/           # Model outputs
-│       ├── model_predictions_2004_2024.csv
-│       └── final_optimized_results.csv
+├── data/                               # Processed datasets only (raw data not committed)
+│   ├── processed/                      # UK processed datasets (2004–2024)
+│   ├── france/processed/               # France processed (Schauberger yields + E-OBS weather)
+│   ├── belgium/, denmark/, germany/,   # Additional European country data (processed)
+│   │   ireland/, netherlands/
+│   ├── pooled/                         # Pooled multi-country anomaly dataset
+│   └── outputs/                        # Model prediction outputs
 │
-├── plots/                 # Visualizations
-├── eda/                   # Exploratory data analysis
-├── archive/               # Experimental code (for reference)
-│   ├── experiments/
-│   ├── diagnostics/
-│   └── data_processing/
-│
-├── notebooks/             # Jupyter notebooks
-├── requirements.txt       # Python dependencies
-└── README.md
+├── eda/                                # Exploratory data analysis scripts
+├── plots/                              # Generated figures
+└── requirements.txt
 ```
 
-## Key Findings
+> **Raw data is not included in the repository.** Only processed datasets are committed. To reconstruct the raw inputs, download them from the sources listed below and place them under `data/raw/` and `data/france/raw/`, then re-run the `src/` pipeline scripts.
 
-### Model Performance (Temporal Validation 2020-2024)
+## Model Performance
 
-| Crop | R² | RMSE (t/ha) |
-|------|-----|-------------|
-| Wheat | 0.50 | 0.42 |
-| Winter Barley | 0.35 | 0.38 |
-| Spring Barley | 0.42 | 0.35 |
-| Oats | 0.40 | 0.31 |
-| OSR | 0.15 | 0.28 |
+### Pooled Anomaly Models (LOOCV, UK test regions)
 
-### Critical Insights
+| Crop | UK-Only R² | Pooled R² | Best Model |
+|------|-----------|-----------|------------|
+| Wheat | 0.284 | **0.696** | Ridge |
+| Winter Barley | 0.238 | **0.675** | Ridge |
+| Spring Barley | 0.221 | **0.764** | Ridge |
+| Oats | -0.455 | **0.478** | Ridge |
+| OSR | 0.285 | **0.585** | Ridge |
 
-1. **Barley Separation**: Aggregating spring/winter barley (1.44 t/ha yield difference) prevented successful modeling. Separation enables prediction.
-
-2. **OSR Low Performance**: R²=0.15 reflects pest-dominated yields (cabbage stem flea beetle), not weather-dominated.
-
-3. **Extreme Years**: 2010 (cold winter) and 2012 (wet summer) require special handling via quantile-based predictions.
-
-4. **Top Weather Features**:
-   - Wheat: Summer rain (-), Summer sunshine (+), Winter frost
-   - Barley: Spring frost, Grain filling sunshine
-   - Oats: Summer temperature, Spring rainfall
-
-## Installation
+## Setup & Running the Flask Application
 
 ```bash
-# Clone and navigate to project
-cd agricultural-ai-project
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+# 1. Install dependencies
 pip install -r requirements.txt
-```
 
-## Usage
-
-### Run Models
-
-```bash
-# Feature engineering
-python src/features/seasonal_features.py
-
-# Train models
-python src/models/crop_models.py
-
-# Extreme year validation
-python src/models/ensemble.py
-```
-
-### Run Flask Application
-
-```bash
+# 2. Train the pooled models (generates the .pkl files the app loads)
 cd flask_app
+python utils/train_pooled_models.py
+
+# 3. Run the app
 python app.py
 # Open http://localhost:5000
 ```
 
-## Flask Interface Features
-
-1. **Yield Prediction**: Input seasonal weather to predict crop yields
-2. **Scenario Analysis**: Interactive sliders for "what-if" analysis
-3. **Feature Importance**: SHAP-based model explainability
-4. **Historical Trends**: Interactive yield timeline visualizations
+The processed datasets required for training (`data/processed/` and `data/france/processed/`) are included in the repository, so step 2 works out of the box.
 
 ## Data Sources
 
-- **Yield Data**: DEFRA UK crop statistics (2004-2024)
-- **Weather Data**: Met Office regional monthly data
-- **Crops**: Wheat, Winter Barley, Spring Barley, Oats, Oilseed Rape
-
-## Author
-
-Dissertation project for [University Name]
-
-## License
-
-Academic use only.
-# activity check
+- **UK Yields**: DEFRA crop statistics (2004–2024)
+- **UK Weather**: Met Office regional monthly data
+- **European Yields**: Eurostat (2004–2018)
+- **European Weather**: E-OBS gridded dataset (0.1° resolution)
+- **France Historical Yields**: Schauberger et al. (2021) dataset (1900–2018)

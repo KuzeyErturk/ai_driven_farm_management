@@ -1,21 +1,3 @@
-"""
-Add Climatically Similar Countries: Ireland, Netherlands, Belgium, Denmark
-===========================================================================
-Downloads yield data from Eurostat, processes E-OBS weather for each country,
-computes seasonal weather features, and rebuilds the pooled dataset.
-
-These maritime-climate countries are structurally closer to the UK than
-France/Germany, which should improve cross-country transfer.
-
-Data sources:
-- Yields: Eurostat APRO_CPNH1 (national-level, 2004-2016)
-- Weather: E-OBS v31/v32 gridded observations (0.1° resolution)
-- Boundaries: NUTS 2021 LEVL_3 GeoJSON
-
-Usage:
-    python src/france/add_new_countries.py
-"""
-
 import os
 import sys
 import numpy as np
@@ -24,9 +6,6 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import CROPS, YEAR_START, YEAR_END, PATHS
 
-# ============================================================================
-# CONFIG
-# ============================================================================
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -56,15 +35,10 @@ MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
                'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
 
-# ============================================================================
-# STEP 1: DOWNLOAD YIELDS FROM EUROSTAT
-# ============================================================================
-
+# Download the yields from euro_stat
 def download_eurostat_yields():
-    """Download crop yields and areas from Eurostat APRO_CPNH1."""
     import eurostat
 
-    print("\n  Downloading Eurostat APRO_CPNH1...")
     raw = eurostat.get_data('APRO_CPNH1')
     header = raw[0]
     rows = raw[1:]
@@ -126,24 +100,17 @@ def download_eurostat_yields():
     result = pd.DataFrame(all_rows)
     return result
 
-
-# ============================================================================
-# STEP 2: PROCESS E-OBS WEATHER
-# ============================================================================
-
+# Process the EOBS WEATHER data
 def build_country_masks():
-    """Build spatial masks for new countries using NUTS3 boundaries."""
     import geopandas as gpd
     import xarray as xr
 
-    print("\n  Building spatial masks for new countries...")
 
     nuts3 = gpd.read_file(GADM_PATH)
     sample_path = os.path.join(EOBS_DIR, 'tx_1995-2010.nc')
     ds = xr.open_dataset(sample_path)
-    # Crop to relevant area (covering IE, NL, BE, DK)
-    lat_sl = slice(50, 58)  # Extended north for Denmark/Ireland
-    lon_sl = slice(-11, 16)  # Extended west for Ireland
+    lat_sl = slice(50, 58)
+    lon_sl = slice(-11, 16)
 
     lats = ds.latitude.sel(latitude=lat_sl).values
     lons = ds.longitude.sel(longitude=lon_sl).values
@@ -160,7 +127,6 @@ def build_country_masks():
             print(f"    WARNING: No NUTS3 regions found for {country_name} ({prefix})")
             continue
 
-        # Dissolve all NUTS3 into single country polygon
         country_geom = country_nuts.dissolve().geometry.iloc[0]
 
         from shapely import contains_xy
@@ -173,13 +139,10 @@ def build_country_masks():
 
 
 def compute_monthly_weather(masks, lats, lons):
-    """Extract monthly weather from E-OBS for new countries."""
     import xarray as xr
 
     lat_sl = slice(50, 58)
     lon_sl = slice(-11, 16)
-
-    print("\n  Loading E-OBS data...")
 
     # Load variables
     datasets = {}
@@ -198,7 +161,6 @@ def compute_monthly_weather(masks, lats, lons):
                     parts.append(ds)
         datasets[var] = xr.concat(parts, dim='time') if len(parts) > 1 else parts[0]
 
-    # Try radiation
     ds_qq = None
     try:
         path = os.path.join(EOBS_DIR, 'qq_ens_mean_0.1deg_reg_v31.0e.nc')
@@ -293,18 +255,13 @@ def compute_monthly_weather(masks, lats, lons):
     return all_monthly
 
 
-# ============================================================================
-# STEP 3: COMPUTE SEASONAL WEATHER FEATURES
-# ============================================================================
-
+# Seasonal weather featuures computation - convert monthly weather to seasonal features that matcht the UK schema
 def compute_seasonal_features(monthly_df, country_name, optimal_rain):
-    """Convert monthly weather to seasonal features matching the UK schema."""
     rows = []
     for _, mrow in monthly_df.iterrows():
         year = int(mrow['year'])
         row = {'Year': year, 'Region': country_name}
 
-        # --- Temperature features ---
         row['Winter_Tmax'] = np.nanmean([mrow['tmax_dec'], mrow['tmax_jan'], mrow['tmax_feb']]) if year > YEAR_START else np.nanmean([mrow['tmax_jan'], mrow['tmax_feb']])
         row['Spring_Tmax'] = np.nanmean([mrow['tmax_mar'], mrow['tmax_apr'], mrow['tmax_may']])
         row['Summer_Tmax'] = np.nanmean([mrow['tmax_jun'], mrow['tmax_jul'], mrow['tmax_aug']])
@@ -329,7 +286,7 @@ def compute_seasonal_features(monthly_df, country_name, optimal_rain):
         row['Spring_Temp_Range'] = row['Spring_Tmax'] - row['Spring_Tmin']
         row['Summer_Temp_Range'] = row['Summer_Tmax'] - row['Summer_Tmin']
 
-        # GDD (Growing Degree Days) — simplified: sum of (Tmean - 5) for months where Tmean > 5
+        # GDD (Growing Degree Days) — simplified: sum of (Tmean - 5) for months where Tmean > 5 --- using the paper that was mentioned on the report
         for season, months in [('Spring', ['mar', 'apr', 'may']), ('Summer', ['jun', 'jul', 'aug'])]:
             gdd = 0
             for m in months:
@@ -338,7 +295,6 @@ def compute_seasonal_features(monthly_df, country_name, optimal_rain):
                     gdd += (tmean - 5) * 30  # ~30 days per month
             row[f'{season}_GDD'] = gdd
 
-        # --- Rainfall features ---
         row['Winter_Rain'] = sum(mrow[f'rain_{m}'] for m in ['dec', 'jan', 'feb']) if year > YEAR_START else sum(mrow[f'rain_{m}'] for m in ['jan', 'feb'])
         row['Spring_Rain'] = sum(mrow[f'rain_{m}'] for m in ['mar', 'apr', 'may'])
         row['Summer_Rain'] = sum(mrow[f'rain_{m}'] for m in ['jun', 'jul', 'aug'])
@@ -351,7 +307,6 @@ def compute_seasonal_features(monthly_df, country_name, optimal_rain):
         row['Spring_Rain_Squared'] = row['Spring_Rain'] ** 2
         row['Summer_Rain_Squared'] = row['Summer_Rain'] ** 2
 
-        # --- Sunshine features ---
         sun_available = pd.notna(mrow.get('sun_jan', np.nan))
         if sun_available:
             row['Winter_Sun'] = sum(mrow[f'sun_{m}'] for m in ['dec', 'jan', 'feb']) if year > YEAR_START else sum(mrow[f'sun_{m}'] for m in ['jan', 'feb'])
@@ -366,18 +321,15 @@ def compute_seasonal_features(monthly_df, country_name, optimal_rain):
                        'Grain_Filling_Sun', 'Flowering_Sun', 'Summer_Sun_per_Rain']:
                 row[k] = np.nan
 
-        # --- Frost features ---
         row['Winter_Frost'] = sum(mrow[f'frost_{m}'] for m in ['dec', 'jan', 'feb']) if year > YEAR_START else sum(mrow[f'frost_{m}'] for m in ['jan', 'feb'])
         row['Spring_Frost'] = sum(mrow[f'frost_{m}'] for m in ['mar', 'apr', 'may'])
         row['Autumn_Frost'] = sum(mrow[f'frost_{m}'] for m in ['sep', 'oct', 'nov'])
         row['Late_Spring_Frost'] = mrow['frost_may']
 
-        # --- Interaction features ---
         row['Spring_Temp_x_Rain'] = row['Spring_Temp_Mean'] * row['Spring_Rain']
         row['Summer_Temp_x_Rain'] = row['Summer_Temp_Mean'] * row['Summer_Rain']
         row['Summer_Temp_x_Sun'] = row['Summer_Temp_Mean'] * row.get('Summer_Sun', np.nan)
 
-        # --- Stress indicators ---
         row['Heat_Stress'] = max(0, row['Summer_Tmax'] - 30)
         row['Cold_Spring'] = max(0, 5 - row['Spring_Temp_Mean'])
         row['Extreme_Summer_Rain'] = max(0, row['Summer_Rain'] - 300)
@@ -388,12 +340,8 @@ def compute_seasonal_features(monthly_df, country_name, optimal_rain):
     return pd.DataFrame(rows)
 
 
-# ============================================================================
-# STEP 4: MERGE AND BUILD POOLED DATASET
-# ============================================================================
-
+# merge and build pooled datasets
 def merge_yields_weather(yields_df, weather_dfs):
-    """Merge yields with seasonal weather features for each country."""
     merged_parts = []
 
     for country_name in NEW_COUNTRIES:
@@ -413,7 +361,6 @@ def merge_yields_weather(yields_df, weather_dfs):
 
 
 def align_to_uk_schema(df, target_columns):
-    """Ensure DataFrame has same columns as UK dataset."""
     for col in target_columns:
         if col not in df.columns:
             df[col] = np.nan
@@ -421,8 +368,6 @@ def align_to_uk_schema(df, target_columns):
 
 
 def rebuild_pooled_datasets(new_country_data):
-    """Rebuild pooled datasets with new countries added."""
-    print("\n  Rebuilding pooled datasets...")
 
     # Load existing datasets
     uk_regional = pd.read_csv(os.path.join(PATHS['uk_processed'],
@@ -439,20 +384,16 @@ def rebuild_pooled_datasets(new_country_data):
 
     target_cols = list(uk_regional.columns)
 
-    # Truncate UK to overlap period
     uk_reg = uk_regional[(uk_regional['Year'] >= YEAR_START) & (uk_regional['Year'] <= YEAR_END)].copy()
     uk_spr = uk_spring[(uk_spring['Year'] >= YEAR_START) & (uk_spring['Year'] <= YEAR_END)].copy()
     uk_win = uk_winter[(uk_winter['Year'] >= YEAR_START) & (uk_winter['Year'] <= YEAR_END)].copy()
 
-    # Align new country data
     new_aligned = align_to_uk_schema(new_country_data, target_cols)
 
-    # Add Country column
     uk_reg['Country'] = 'UK'
     france['Country'] = 'France'
     germany['Country'] = 'Germany'
 
-    # Build pooled regional (all crops except Spring/Winter Barley which have separate files)
     parts = [uk_reg, france, germany]
     for country_name in NEW_COUNTRIES:
         country_data = new_aligned[new_country_data['Country'] == country_name].copy()
@@ -462,7 +403,6 @@ def rebuild_pooled_datasets(new_country_data):
 
     pooled = pd.concat(parts, ignore_index=True)
 
-    # Recompute Rain_Deviation_from_Optimal
     if 'Annual_Rain' in pooled.columns:
         pooled_optimal = pooled['Annual_Rain'].mean()
         pooled['Rain_Deviation_from_Optimal'] = np.abs(pooled['Annual_Rain'] - pooled_optimal)
@@ -503,7 +443,7 @@ def rebuild_pooled_datasets(new_country_data):
     pooled_spring = pd.concat(spring_parts, ignore_index=True)
     pooled_winter = pd.concat(winter_parts, ignore_index=True)
 
-    # Recompute Rain_Deviation
+    # Recompute rain_deviation
     for pdf in [pooled_spring, pooled_winter]:
         if 'Annual_Rain' in pdf.columns:
             pdf['Rain_Deviation_from_Optimal'] = np.abs(pdf['Annual_Rain'] - pdf['Annual_Rain'].mean())
@@ -541,15 +481,8 @@ def rebuild_pooled_datasets(new_country_data):
     return pooled
 
 
-# ============================================================================
-# STEP 5: VALIDATION
-# ============================================================================
-
+# Validation step - validating pooled set
 def validate_pooled(pooled):
-    """Print validation summary."""
-    print("\n" + "=" * 70)
-    print("  VALIDATION")
-    print("=" * 70)
 
     print(f"\n  Countries: {sorted(pooled['Country'].unique())}")
     print(f"  Total rows: {len(pooled)}")
@@ -577,23 +510,13 @@ def validate_pooled(pooled):
         if 'Summer_Tmax' in sub.columns and sub['Summer_Tmax'].notna().any():
             print(f"    {country}: {sub['Summer_Tmax'].mean():.1f}°C")
 
-
-# ============================================================================
-# MAIN
-# ============================================================================
-
 def main():
-    print("=" * 70)
-    print("ADD NEW COUNTRIES: Ireland, Netherlands, Belgium, Denmark")
-    print("=" * 70)
-
+    # Main function to add the new country datasets
     # Step 1: Download yields
-    print("\n--- STEP 1: Download yield data from Eurostat ---")
     yields_df = download_eurostat_yields()
-    print(f"\n  Total yield records: {len(yields_df)}")
+    print(f"\n  downloading yields from eurostat: {len(yields_df)}")
 
-    # Step 2: Process weather
-    print("\n--- STEP 2: Process E-OBS weather data ---")
+    # Step 2: Process EOBS weather
     masks, lats, lons = build_country_masks()
     monthly_data = compute_monthly_weather(masks, lats, lons)
 
@@ -604,8 +527,7 @@ def main():
         monthly_df.to_csv(csv_path, index=False)
         print(f"  Saved: {csv_path}")
 
-    # Step 3: Compute seasonal features
-    print("\n--- STEP 3: Compute seasonal weather features ---")
+    # Step 3: Compute seasonal weather features
     weather_features = {}
     for country_name in NEW_COUNTRIES:
         if country_name not in monthly_data:
@@ -617,7 +539,6 @@ def main():
         print(f"  {country_name}: {len(weather_features[country_name])} year-records")
 
     # Step 4: Merge yields + weather
-    print("\n--- STEP 4: Merge yields with weather ---")
     merged = merge_yields_weather(yields_df, weather_features)
     print(f"  Merged records: {len(merged)}")
 
@@ -626,15 +547,10 @@ def main():
         return
 
     # Step 5: Rebuild pooled datasets
-    print("\n--- STEP 5: Rebuild pooled datasets ---")
     pooled = rebuild_pooled_datasets(merged)
 
     # Step 6: Validate
     validate_pooled(pooled)
-
-    print("\n" + "=" * 70)
-    print("DONE — New countries added to pooled datasets")
-    print("=" * 70)
 
 
 if __name__ == '__main__':

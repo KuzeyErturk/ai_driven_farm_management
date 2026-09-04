@@ -1,16 +1,3 @@
-"""
-DISSERTATION FINAL RESULTS
-===========================
-Reproduces all key results, metrics, and plots for the dissertation.
-Run from project root: python src/models/dissertation_final_results.py
-
-Key findings:
-- Baseline RF: avg LOOCV R²=0.190, avg test R²=0.204
-- Improved (best-per-crop): avg LOOCV R²=0.251
-- Spring Barley: Ridge (alpha=10) best - LOOCV R² 0.129 → 0.221 (+0.092)
-- OSR: SVR (linear) best - LOOCV R² 0.041 → 0.196 (+0.155)
-"""
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,9 +14,6 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from baseline_model_config import CROP_FEATURES, DATA_SOURCES, BASELINE_RESULTS, IMPROVED_RESULTS
 
-# ============================================================================
-# LOAD DATA
-# ============================================================================
 regional = pd.read_csv('data/processed/regional_crop_yield_weather_2004_2024.csv')
 spring_barley = pd.read_csv('data/processed/spring_barley_with_weather.csv')
 winter_barley = pd.read_csv('data/processed/winter_barley_with_weather.csv')
@@ -41,10 +25,6 @@ datasets = {
     'Oats':          regional[regional['Crop'] == 'Oats'].copy(),
     'OSR':           regional[regional['Crop'] == 'Oilseed_Rape'].copy(),
 }
-
-# ============================================================================
-# MODEL DEFINITIONS
-# ============================================================================
 BASELINE_MODEL_PARAMS = dict(n_estimators=100, max_depth=8, min_samples_split=3, random_state=42)
 
 BEST_MODELS = {
@@ -55,9 +35,6 @@ BEST_MODELS = {
     'OSR':           SVR(kernel='linear', C=1.0),
 }
 
-# ============================================================================
-# HELPER
-# ============================================================================
 def loocv_evaluate(model, X_sc, y):
     loo = LeaveOneOut()
     y_pred = np.zeros(len(y))
@@ -72,13 +49,8 @@ def test_evaluate(model, X_train, y_train, X_test, y_test):
     y_pred = model.predict(X_test)
     return r2_score(y_test, y_pred), np.sqrt(mean_squared_error(y_test, y_pred)), y_pred
 
+print("FYP FINAL RESULTS: UK Crop Yield Prediction 2004-2024")
 
-# ============================================================================
-# MAIN EXPERIMENT
-# ============================================================================
-print("=" * 75)
-print("DISSERTATION FINAL RESULTS: UK Crop Yield Prediction 2004-2024")
-print("=" * 75)
 
 crops = list(CROP_FEATURES.keys())
 results = {}
@@ -124,19 +96,14 @@ for crop in crops:
         'features': avail,
     }
 
-# ============================================================================
-# PRINT SUMMARY TABLE
-# ============================================================================
 print(f"\n{'Crop':<15} {'N':>4} | {'Baseline':^23} | {'Improved (Best)':^23} | {'Delta LOOCV':>12}")
 print(f"{'':<15} {'':<4} | {'LOOCV R²':>10} {'Test R²':>10} | {'LOOCV R²':>10} {'Test R²':>10} | {''}")
-print("-" * 85)
 for crop, r in results.items():
     d = r['m_loo_r2'] - r['b_loo_r2']
     model_str = r['model_name'][:12]
     print(f"{crop:<15} {r['n']:>4} | {r['b_loo_r2']:>10.3f} {r['b_test_r2']:>10.3f} | "
           f"{r['m_loo_r2']:>10.3f} {r['m_test_r2']:>10.3f} | {d:>+12.3f}  [{model_str}]")
 
-print("-" * 85)
 avg_b_loo  = np.mean([r['b_loo_r2']  for r in results.values()])
 avg_m_loo  = np.mean([r['m_loo_r2']  for r in results.values()])
 avg_b_test = np.mean([r['b_test_r2'] for r in results.values()])
@@ -144,31 +111,11 @@ avg_m_test = np.mean([r['m_test_r2'] for r in results.values()])
 print(f"{'AVERAGE':<15} {'':>4} | {avg_b_loo:>10.3f} {avg_b_test:>10.3f} | "
       f"{avg_m_loo:>10.3f} {avg_m_test:>10.3f} | {avg_m_loo - avg_b_loo:>+12.3f}")
 
-print(f"""
-KEY FINDINGS:
-  1. Wheat:         RF (max_depth=8) is best — test R²=0.485, LOOCV R²=0.355
-  2. Winter Barley: Reducing max_depth (5→8) gives marginal LOOCV gain
-  3. Spring Barley: Ridge (α=10) significantly improves LOOCV (+0.092)
-                    RF overfits on this crop's small training data
-  4. Oats:          Shallow RF (max_depth=3) reduces variance → LOOCV +0.053
-  5. OSR:           SVR (linear) gives largest LOOCV gain (+0.155)
-                    Linear weather relationships better captured than non-linear
 
-  Metric note:
-  - LOOCV R² is the primary metric (n=84 per crop, small sample)
-  - Temporal test (2020-2024) is secondary; 2020-24 was unusual period
-  - Average LOOCV improvement: {avg_b_loo:.3f} → {avg_m_loo:.3f} (+{avg_m_loo-avg_b_loo:.3f})
-""")
-
-# ============================================================================
-# ALGORITHM COMPARISON TABLE
-# ============================================================================
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import ElasticNet
 
-print("=" * 75)
-print("ALGORITHM COMPARISON (LOOCV R²) — Table X in Dissertation")
-print("=" * 75)
+print("ALGORITHM COMPARISON (LOOCV R²)")
 
 algorithms = {
     'RF (max_depth=8)': lambda: RandomForestRegressor(n_estimators=100, max_depth=8, min_samples_split=3, random_state=42),
@@ -202,9 +149,3 @@ print("-" * (20 + 12 * 6))
 for alg, scores in alg_results.items():
     row = f"{alg:<20}" + "".join(f"{s:>12.3f}" for s in scores) + f"{np.mean(scores):>12.3f}"
     print(row)
-
-print()
-print("Plots saved to: plots/dissertation_model_comparison.png")
-print("              plots/dissertation_predicted_vs_actual.png")
-print("              plots/dissertation_temporal_validation.png")
-print("=" * 75)

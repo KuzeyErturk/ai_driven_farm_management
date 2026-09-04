@@ -5,24 +5,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Ridge
 from sklearn.metrics import r2_score, mean_squared_error
 
-print("="*70)
-print("REGIONAL CROP-SPECIFIC MODELS")
-print("="*70)
-
-# ============================================================================
-# LOAD REGIONAL DATA
-# ============================================================================
-
 df = pd.read_csv('data/regional_crop_yield_weather_2004_2024.csv')
 
 print(f"\nDataset: {len(df)} observations")
 print(f"Crops: {df['Crop'].unique()}")
 print(f"Regions: {df['Region'].unique()}")
 print(f"Years: {df['Year'].min()} - {df['Year'].max()}")
-
-# ============================================================================
-# FEATURE SETS
-# ============================================================================
 
 # Top features per crop (based on earlier correlation analysis)
 crop_features = {
@@ -33,20 +21,13 @@ crop_features = {
 }
 
 # Baseline features
-baseline_features = ['Area_hectares']  # Just area as simplest baseline
-
-# ============================================================================
-# BUILD MODELS FOR EACH CROP
-# ============================================================================
+baseline_features = ['Area_hectares']
 
 results = []
 
 for crop in df['Crop'].unique():
-    print(f"\n{'='*70}")
     print(f"CROP: {crop.upper()}")
-    print(f"{'='*70}")
     
-    # Filter data
     crop_data = df[df['Crop'] == crop].copy()
     
     print(f"Total observations: {len(crop_data)}")
@@ -65,11 +46,6 @@ for crop in df['Crop'].unique():
     
     y_train = crop_data.loc[train_mask, 'Yield_t_per_ha']
     y_test = crop_data.loc[test_mask, 'Yield_t_per_ha']
-    
-    # ----------------------------------------------------------------
-    # BASELINE: Area only
-    # ----------------------------------------------------------------
-    
     X_base_train = crop_data.loc[train_mask, baseline_features]
     X_base_test = crop_data.loc[test_mask, baseline_features]
     
@@ -83,15 +59,9 @@ for crop in df['Crop'].unique():
     y_pred_base = ridge_base.predict(X_base_test_sc)
     base_r2 = r2_score(y_test, y_pred_base)
     base_rmse = np.sqrt(mean_squared_error(y_test, y_pred_base))
-    
-    print(f"\n📊 BASELINE (Area only):")
+
     print(f"   Test R²: {base_r2:.3f}")
     print(f"   Test RMSE: {base_rmse:.2f} t/ha")
-    
-    # ----------------------------------------------------------------
-    # SEASONAL: Top weather features
-    # ----------------------------------------------------------------
-    
     seasonal_feats = crop_features[crop]
     
     X_seas_train = crop_data.loc[train_mask, seasonal_feats]
@@ -108,33 +78,28 @@ for crop in df['Crop'].unique():
     seas_r2 = r2_score(y_test, y_pred_seas)
     seas_rmse = np.sqrt(mean_squared_error(y_test, y_pred_seas))
     
-    print(f"\n🔥 SEASONAL ({len(seasonal_feats)} features):")
+    print(f"\nSEASONAL ({len(seasonal_feats)} features):")
     print(f"   Features: {', '.join(seasonal_feats)}")
     print(f"   Test R²: {seas_r2:.3f}")
     print(f"   Test RMSE: {seas_rmse:.2f} t/ha")
-    
-    # ----------------------------------------------------------------
-    # COMPARISON
-    # ----------------------------------------------------------------
-    
+
     improvement_r2 = seas_r2 - base_r2
     improvement_rmse = base_rmse - seas_rmse
     
-    print(f"\n💡 IMPROVEMENT:")
     print(f"   ΔR²: {improvement_r2:+.3f}")
     print(f"   ΔRMSE: {improvement_rmse:+.2f} t/ha")
     
     if seas_r2 > 0.3:
-        status = "✅ GOOD prediction"
+        status = "good prediction"
     elif seas_r2 > 0:
-        status = "✓ Positive prediction"
+        status = " Positive prediction"
     else:
-        status = "⚠️ Still negative (needs more work)"
+        status = "Still negative"
     
     print(f"   {status}")
     
     # Feature importance
-    print(f"\n🌟 Feature Coefficients:")
+    print(f"\n eature Coefficients:")
     for feat, coef in zip(seasonal_feats, ridge_seas.coef_):
         print(f"   • {feat}: {coef:+.3f}")
     
@@ -151,18 +116,14 @@ for crop in df['Crop'].unique():
         'Seasonal_RMSE': seas_rmse
     })
 
-# ============================================================================
-# SUMMARY
-# ============================================================================
 
-print("\n" + "="*70)
-print("📊 SUMMARY: REGIONAL CROP-SPECIFIC MODELS")
-print("="*70)
+print("SUMMARY: REGIONAL CROP-SPECIFIC MODELS")
+
 
 results_df = pd.DataFrame(results)
 print("\n" + results_df.to_string(index=False))
 
-print("\n💡 KEY FINDINGS:")
+print("\nKEY FINDINGS:")
 print(f"\nAverage Baseline R²: {results_df['Baseline_R2'].mean():.3f}")
 print(f"Average Seasonal R²: {results_df['Seasonal_R2'].mean():.3f}")
 print(f"Average Improvement: {results_df['Improvement_R2'].mean():+.3f}")
@@ -201,12 +162,4 @@ plt.savefig('plots/regional_crop_models.png', dpi=300, bbox_inches='tight')
 print("\n✓ Saved: plots/regional_crop_models.png")
 plt.show()
 
-print("\n" + "="*70)
-print("🎉 REGIONAL MODELING COMPLETE!")
-print("="*70)
-
-print("\n✨ WITH 84 OBSERVATIONS PER CROP:")
-print("  • 4x more data than national level")
-print("  • Better statistical power")
-print("  • Regional weather variation captured")
-print("\nExpected: Positive R² values now!")
+print("completion of regional modelling")

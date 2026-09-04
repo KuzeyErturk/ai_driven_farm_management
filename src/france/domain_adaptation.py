@@ -1,18 +1,3 @@
-"""
-Domain Adaptation for Cross-Country Crop Yield Transfer
-=========================================================
-Implements domain adaptation techniques to improve cross-country transfer:
-
-1. Mixed-Effects Models — random country intercepts + slopes via statsmodels MixedLM
-2. Quantile Mapping / Bias Correction — remove country baseline yield differences
-3. CORAL Domain Adaptation — align feature distributions across countries
-
-Compares all approaches against the pooled Ridge baseline (Is_France/Is_Germany).
-
-Usage:
-    python src/france/domain_adaptation.py
-"""
-
 import os
 import sys
 import pandas as pd
@@ -31,10 +16,6 @@ from config import PATHS, YEAR_START, YEAR_END
 
 sys.path.insert(0, PATHS['models'])
 from baseline_model_config import CROP_FEATURES
-
-# ============================================================================
-# CONFIG
-# ============================================================================
 
 CROPS = list(CROP_FEATURES.keys())
 
@@ -68,15 +49,9 @@ KEY_WEATHER_FOR_SLOPES = [
     'Grain_Filling_Temp', 'Summer_GDD',
 ]
 
-
-# ============================================================================
-# DATA LOADING
-# ============================================================================
-
+# Loading the data
 def load_datasets():
-    """Load all required datasets."""
     data = {}
-
     # UK
     data['uk_regional'] = pd.read_csv(os.path.join(
         PATHS['uk_processed'], 'regional_crop_yield_weather_2004_2024.csv'))
@@ -101,7 +76,7 @@ def load_datasets():
     data['germany_winter'] = pd.read_csv(os.path.join(
         PATHS['germany_processed'], 'germany_winter_barley_with_weather.csv'))
 
-    # Pooled
+    # Pooled ( both france + uk + germany)
     data['pooled_regional'] = pd.read_csv(os.path.join(
         PATHS['pooled'], 'pooled_regional_crop_yield_weather_2004_2018.csv'))
     data['pooled_spring'] = pd.read_csv(os.path.join(
@@ -113,7 +88,6 @@ def load_datasets():
 
 
 def get_crop_data(datasets, crop, country):
-    """Get data for a specific crop and country."""
     if crop == 'Spring_Barley':
         key = 'spring'
     elif crop == 'Winter_Barley':
@@ -132,7 +106,6 @@ def get_crop_data(datasets, crop, country):
 
 
 def get_pooled_df(datasets, crop):
-    """Get pooled DataFrame for a crop."""
     if crop == 'Spring_Barley':
         return datasets['pooled_spring'].copy()
     elif crop == 'Winter_Barley':
@@ -144,7 +117,6 @@ def get_pooled_df(datasets, crop):
 
 
 def prepare_pooled_features(pooled_df):
-    """Prepare feature matrix from pooled data. Returns df with clean features + metadata."""
     features = ['Area_hectares'] + [f for f in ALL_WEATHER_FEATURES if f in pooled_df.columns]
     available = [f for f in features if pooled_df[f].notna().any() and pooled_df[f].std() > 0.001]
 
@@ -152,13 +124,7 @@ def prepare_pooled_features(pooled_df):
     df = pooled_df[keep_cols].dropna().copy()
     return df, available
 
-
-# ============================================================================
-# BASELINE: POOLED RIDGE WITH BINARY INDICATORS
-# ============================================================================
-
 def loocv_ridge_baseline(df, features):
-    """Pooled Ridge with binary country indicators (one-hot, drop UK as reference)."""
     df = df.copy()
     # Create binary indicator for every non-UK country
     non_uk_countries = sorted([c for c in df['Country'].unique() if c != 'UK'])
@@ -182,12 +148,7 @@ def loocv_ridge_baseline(df, features):
     return r2_score(y, y_pred), np.sqrt(mean_squared_error(y, y_pred)), y_pred, df['Country'].values
 
 
-# ============================================================================
-# APPROACH 1: MIXED-EFFECTS MODELS
-# ============================================================================
-
 def _select_top_features(df, features, n_top=10):
-    """Select top N features by correlation with yield, removing highly correlated pairs."""
     correlations = []
     for f in features:
         if df[f].std() > 0.001:
@@ -196,7 +157,6 @@ def _select_top_features(df, features, n_top=10):
                 correlations.append((f, corr))
     correlations.sort(key=lambda x: x[1], reverse=True)
 
-    # Greedy selection: skip features with |r| > 0.85 to an already-selected feature
     selected = []
     for f, _ in correlations:
         if len(selected) >= n_top:
@@ -212,11 +172,6 @@ def _select_top_features(df, features, n_top=10):
 
 
 def loocv_mixed_effects_intercept(df, features):
-    """
-    Mixed-effects model: fixed weather slopes + random country intercepts.
-    Uses statsmodels MixedLM with Country as group variable.
-    Reduces to top 15 features for numerical stability.
-    """
     df = df.copy().reset_index(drop=True)
 
     # Reduce feature set for MixedLM stability
@@ -243,7 +198,6 @@ def loocv_mixed_effects_intercept(df, features):
         test = X_scaled.iloc[te]
 
         try:
-            # MixedLM: Yield ~ weather features (fixed) + (1 | Country)
             X_train_const = sm.add_constant(train[X_cols])
             model = MixedLM(
                 endog=train['Yield_t_per_ha'],
@@ -277,12 +231,6 @@ def loocv_mixed_effects_intercept(df, features):
 
 
 def loocv_mixed_effects_slopes(df, features):
-    """
-    Mixed-effects model: fixed weather slopes + random country intercepts AND slopes.
-    Random slopes on key weather variables (Summer_Tmax, Spring_Rain, etc.)
-    Each country gets its own temperature-yield curve, rainfall-yield curve, etc.
-    Reduces to top 15 features for numerical stability.
-    """
     df = df.copy().reset_index(drop=True)
 
     # Reduce feature set
@@ -371,16 +319,7 @@ def loocv_mixed_effects_slopes(df, features):
 
     return r2_score(y, y_pred), np.sqrt(mean_squared_error(y, y_pred)), y_pred, df['Country'].values
 
-
-# ============================================================================
-# APPROACH 2: QUANTILE MAPPING / BIAS CORRECTION
-# ============================================================================
-
 def loocv_bias_corrected(df, features):
-    """
-    Bias correction: remove per-country mean yield before training,
-    add it back after prediction. Uses Ridge on residuals.
-    """
     df = df.copy().reset_index(drop=True)
     X = df[features].values
     y = df['Yield_t_per_ha'].values
@@ -418,22 +357,11 @@ def loocv_bias_corrected(df, features):
 
     return r2_score(y, y_pred), np.sqrt(mean_squared_error(y, y_pred)), y_pred, countries
 
-
-# ============================================================================
-# APPROACH 3: CORAL DOMAIN ADAPTATION
-# ============================================================================
-
 def coral_transform(X_source, X_target):
-    """
-    CORAL: CORrelation ALignment.
-    Align source feature covariance to target feature covariance.
-    """
-    # Source and target covariance
+    # CORAL domain adaptation (Sun et al., 2016) — whitens source, re-colours to target covariance
     Cs = np.cov(X_source, rowvar=False) + np.eye(X_source.shape[1]) * 1e-6
     Ct = np.cov(X_target, rowvar=False) + np.eye(X_target.shape[1]) * 1e-6
 
-    # Whitening source then coloring with target
-    # X_aligned = X_source @ Cs^{-1/2} @ Ct^{1/2}
     Ds, Vs = np.linalg.eigh(Cs)
     Ds = np.maximum(Ds, 1e-6)
     Cs_neg_half = Vs @ np.diag(1.0 / np.sqrt(Ds)) @ Vs.T
@@ -447,10 +375,6 @@ def coral_transform(X_source, X_target):
 
 
 def loocv_coral(df, features):
-    """
-    CORAL domain adaptation: align non-UK features to UK distribution,
-    then train pooled Ridge. Requires min 20 samples per country for alignment.
-    """
     df = df.copy().reset_index(drop=True)
     X = df[features].values
     y = df['Yield_t_per_ha'].values
@@ -523,12 +447,7 @@ def loocv_coral(df, features):
     return r2_score(y, y_pred), np.sqrt(mean_squared_error(y, y_pred)), y_pred, countries
 
 
-# ============================================================================
-# TRANSFER HELPERS
-# ============================================================================
-
 def _compute_climate_weights(df, features, target='UK'):
-    """Compute per-sample weights based on climate similarity to target country."""
     # Use key climate variables for distance
     climate_vars = [v for v in ['Summer_Tmax', 'Annual_Rain', 'Winter_Tmin', 'Spring_Rain']
                     if v in features]
@@ -550,7 +469,7 @@ def _compute_climate_weights(df, features, target='UK'):
         std[std < 0.001] = 1
         country_distances[c] = np.sqrt(np.sum(((c_mean - target_mean) / std) ** 2))
 
-    # Convert to weights: w = exp(-d²/σ²), σ = median distance
+    # Convert to weights: w = exp(-d^2/sigma^2), sigma = median distance
     if not country_distances:
         return np.ones(len(df))
     sigma = np.median(list(country_distances.values()))
@@ -569,7 +488,6 @@ def _compute_climate_weights(df, features, target='UK'):
 
 
 def _select_transferable_features(df, features, min_countries=5):
-    """Select features with consistent yield correlation sign across countries."""
     countries = df['Country'].unique()
     selected = []
 
@@ -590,7 +508,6 @@ def _select_transferable_features(df, features, min_countries=5):
         if len(signs) < min_countries:
             continue
 
-        # Consistent sign across countries AND meaningful magnitude in ≥3
         n_pos = sum(1 for s in signs if s > 0)
         n_neg = sum(1 for s in signs if s < 0)
         n_meaningful = sum(1 for m in magnitudes if m > 0.1)
@@ -613,15 +530,10 @@ def _select_transferable_features(df, features, min_countries=5):
     return result
 
 
-# ============================================================================
-# TRANSFER TEST: TRAIN ON NON-UK, PREDICT UK
-# ============================================================================
+# Tranfer the test: train on non-uk data to predict the UK
+
 
 def transfer_to_uk(df, features, method='ridge'):
-    """
-    Train on non-UK data, predict UK. Tests true cross-country transfer.
-    Returns R² on UK test data.
-    """
     df = df.copy().reset_index(drop=True)
     uk_mask = df['Country'] == 'UK'
     non_uk = df[~uk_mask]
@@ -713,11 +625,10 @@ def transfer_to_uk(df, features, method='ridge'):
         model.fit(X_tr, y_train)
         y_pred = model.predict(X_te)
 
-    # === NEW TRANSFER METHODS ===
 
     elif method == 'anomaly':
         # Train on yield anomalies (z-scored within country), predict UK anomaly,
-        # estimate UK baseline from Ireland (closest climate analogue)
+        # estimate UK baseline from Ireland
         countries_train = non_uk['Country'].values
         country_stats = {}
         for c in np.unique(countries_train):
@@ -739,7 +650,6 @@ def transfer_to_uk(df, features, method='ridge'):
         # Predict UK anomaly
         anomaly_pred = model.predict(X_te)
 
-        # Estimate UK baseline from Ireland (closest climate analogue)
         if 'Ireland' in country_stats:
             uk_mean_est = country_stats['Ireland']['mean']
             uk_std_est = country_stats['Ireland']['std']
@@ -750,7 +660,6 @@ def transfer_to_uk(df, features, method='ridge'):
         y_pred = anomaly_pred * uk_std_est + uk_mean_est
 
     elif method == 'anomaly_climate_weighted':
-        # Anomaly model + climate-similarity weighting
         countries_train = non_uk['Country'].values
         country_stats = {}
         for c in np.unique(countries_train):
@@ -784,7 +693,7 @@ def transfer_to_uk(df, features, method='ridge'):
         y_pred = anomaly_pred * uk_std_est + uk_mean_est
 
     elif method == 'ireland_only':
-        # Transfer from Ireland only (closest climate analogue)
+        # Transfer from Ireland only
         ie_mask = non_uk['Country'] == 'Ireland'
         ie_data = non_uk[ie_mask]
         if len(ie_data) < 5:
@@ -801,7 +710,6 @@ def transfer_to_uk(df, features, method='ridge'):
         y_pred = model.predict(X_te)
 
     elif method == 'climate_weighted':
-        # Plain Ridge but with climate-similarity sample weights
         weights = _compute_climate_weights(df, features, target='UK')
         train_weights = weights[~uk_mask.values]
 
@@ -877,7 +785,7 @@ def transfer_to_uk(df, features, method='ridge'):
         y_pred = model.predict(X_te_z)
 
     elif method == 'combined':
-        # COMBINED: anomaly + climate weighting + transferable features + per-country z-score
+        # combined: anomaly + climate weighting + transferable features + per-country z-score
         tf = _select_transferable_features(df, features, min_countries=4)
 
         countries_train = non_uk['Country'].values
@@ -936,8 +844,8 @@ def transfer_to_uk(df, features, method='ridge'):
 
         y_pred = anomaly_pred * uk_std_est + uk_mean_est
 
+    # If we are finetuning :
     elif method == 'finetune':
-        # Semi-supervised: pre-train on non-UK, calibrate with 5 UK years
         # Use first 5 UK years as calibration, rest as test
         uk_sorted = uk.sort_values('Year')
         n_cal = min(5, len(uk_sorted) // 2)
@@ -973,12 +881,8 @@ def transfer_to_uk(df, features, method='ridge'):
     return r2, rmse
 
 
-# ============================================================================
-# PER-COUNTRY R² FROM LOOCV
-# ============================================================================
-
+# R^2 scores for each country using LOOCV
 def per_country_r2(y_true, y_pred, countries):
-    """Compute R² for each country from LOOCV predictions."""
     results = {}
     for c in np.unique(countries):
         mask = countries == c
@@ -987,11 +891,6 @@ def per_country_r2(y_true, y_pred, countries):
         else:
             results[c] = r2_score(y_true[mask], y_pred[mask])
     return results
-
-
-# ============================================================================
-# MAIN
-# ============================================================================
 
 def main():
     import matplotlib.pyplot as plt
@@ -1016,16 +915,8 @@ def main():
         ('Bias Correction', loocv_bias_corrected),
         ('CORAL', loocv_coral),
     ]
-
-    # =====================================================================
-    # EXPERIMENT 1: POOLED LOOCV — all methods
-    # =====================================================================
-    print("\n" + "=" * 75)
-    print("EXPERIMENT 1: POOLED LOOCV — DOMAIN ADAPTATION METHODS")
-    print("=" * 75)
-
+    # First, check the Pooled LOOCV using all the methods
     for crop in CROPS:
-        print(f"\n  --- {crop} ---")
         pooled_df = get_pooled_df(datasets, crop)
         df, features = prepare_pooled_features(pooled_df)
         n = len(df)
@@ -1052,12 +943,7 @@ def main():
             de_r2 = pc.get('Germany', np.nan)
             print(f"R²={r2:.3f} (UK={uk_r2:.3f}, FR={fr_r2:.3f}, DE={de_r2:.3f})")
 
-    # =====================================================================
-    # SUMMARY TABLE
-    # =====================================================================
-    print("\n" + "=" * 75)
-    print("SUMMARY: POOLED LOOCV R² BY METHOD")
-    print("=" * 75)
+    # Summary table
 
     method_names = [m[0] for m in methods]
 
@@ -1077,7 +963,6 @@ def main():
             print(f" {r2:>12.3f}", end="")
         print(f" {np.nanmean(vals):>10.3f}")
 
-    # Per-country breakdown — dynamically detect all countries
     all_countries = sorted(set(
         c for crop in CROPS
         for mn in method_names
@@ -1100,12 +985,7 @@ def main():
                 print(f" {r2:>12.3f}", end="")
             print(f" {np.nanmean(vals):>10.3f}")
 
-    # =====================================================================
-    # EXPERIMENT 2: TRANSFER TEST (train non-UK, predict UK)
-    # =====================================================================
-    print("\n" + "=" * 75)
-    print("EXPERIMENT 2: TRANSFER TEST — Train on non-UK, Predict UK")
-    print("=" * 75)
+    # Tranfer test method - train ion non-uk to predict uk
 
     transfer_methods = [
         'ridge', 'bias_corrected', 'mixed_effects',
@@ -1142,9 +1022,6 @@ def main():
                 print(f" {r2:>12.3f}", end="")
         print(f" {np.nanmean(vals):>10.3f}")
 
-    # =====================================================================
-    # PLOT: Method comparison
-    # =====================================================================
     fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
     # Plot 1: Overall R² by method
@@ -1185,13 +1062,6 @@ def main():
     plt.close()
     print(f"\n  Plot saved: plots/domain_adaptation_comparison.png")
 
-    # =====================================================================
-    # KEY FINDINGS
-    # =====================================================================
-    print("\n" + "=" * 75)
-    print("KEY FINDINGS")
-    print("=" * 75)
-
     # Find best method per metric
     avg_overall = {mn: np.nanmean([all_results[c][mn]['r2'] for c in CROPS]) for mn in method_names}
     avg_uk = {mn: np.nanmean([all_results[c][mn]['per_country'].get('UK', np.nan) for c in CROPS]) for mn in method_names}
@@ -1199,23 +1069,6 @@ def main():
     best_overall = max(avg_overall, key=avg_overall.get)
     best_uk = max(avg_uk, key=avg_uk.get)
 
-    print(f"""
-  Best overall pooled R²:  {best_overall} (avg R²={avg_overall[best_overall]:.3f})
-  Best UK R²:              {best_uk} (avg UK R²={avg_uk[best_uk]:.3f})
-
-  Baseline (Ridge+Indicators):
-    Overall: {avg_overall['Ridge+Indicators']:.3f}
-    UK:      {avg_uk['Ridge+Indicators']:.3f}
-
-  Improvement over baseline:
-    Overall: {avg_overall[best_overall] - avg_overall['Ridge+Indicators']:+.3f} ({best_overall})
-    UK:      {avg_uk[best_uk] - avg_uk['Ridge+Indicators']:+.3f} ({best_uk})
-""")
-
-    print("=" * 75)
-    print("DONE")
-    print("=" * 75)
-
-
+    # Various print statements was used to check the results and compare, also plots can be done/drawn to see and visualise some results
 if __name__ == '__main__':
     main()

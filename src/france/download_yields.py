@@ -1,16 +1,3 @@
-"""
-Load and Process French & German Crop Yield Data
-==================================================
-France: Schauberger et al. (2022) — 97 départements, 1900-2018
-Germany: OpenAgrar — 397 districts, 1979-2021
-
-Aggregates subnational data to 4 macro-regions per country using
-area-weighted average yields.
-
-Usage:
-    python src/france/download_yields.py
-"""
-
 import os
 import sys
 import pandas as pd
@@ -24,17 +11,9 @@ from config import (
 )
 
 
-# ============================================================================
-# FRANCE (Schauberger et al. 2022)
-# ============================================================================
+# france data from Schauberger et al. 2022
 
 def load_france_yields():
-    """
-    Load French crop yields from Schauberger semicolon-delimited .txt files.
-    Each file has columns: department, year, yield (t/ha), area (ha), production (kg).
-    """
-    print("\n  Loading France yield data (Schauberger et al. 2022)...")
-
     all_rows = []
 
     for crop_name, filename in FRANCE_CROP_FILES.items():
@@ -48,20 +27,16 @@ def load_france_yields():
         # Filter years
         df = df[(df['year'] >= YEAR_START) & (df['year'] <= YEAR_END)]
 
-        # Map départements to regions
         df['Region'] = df['department'].map(FRANCE_DEPT_TO_REGION)
 
-        # Check for unmapped departments
         unmapped = df[df['Region'].isna()]['department'].unique()
         if len(unmapped) > 0:
             print(f"    WARNING: Unmapped departments for {crop_name}: {list(unmapped)}")
 
         df = df.dropna(subset=['Region'])
 
-        # Drop rows with zero or missing yield/area
         df = df[(df['yield'] > 0) & (df['area'] > 0)]
 
-        # Aggregate to 4 regions using area-weighted average yield
         for (year, region), group in df.groupby(['year', 'Region']):
             total_area = group['area'].sum()
             weighted_yield = (group['yield'] * group['area']).sum() / total_area
@@ -81,31 +56,17 @@ def load_france_yields():
     result = pd.DataFrame(all_rows)
     return result
 
-
-# ============================================================================
-# GERMANY (OpenAgrar)
-# ============================================================================
-
 def load_germany_yields():
-    """
-    Load German crop yields from the OpenAgrar CSV.
-    Format: district_no, district, nuts_id, year, var, measure, value, outlier
-    Yield is in t/ha. Crop codes: ww, wb, sb, oats, wrape.
-    """
-    print("\n  Loading Germany yield data (OpenAgrar)...")
-
     if not os.path.exists(GERMANY_CSV_PATH):
         print(f"    WARNING: Missing {GERMANY_CSV_PATH}")
         return pd.DataFrame()
 
     df = pd.read_csv(GERMANY_CSV_PATH)
 
-    # Filter to our crops and year range
     target_crops = set(GERMANY_CROP_MAPPING.keys())
     df = df[df['var'].isin(target_crops)]
     df = df[(df['year'] >= YEAR_START) & (df['year'] <= YEAR_END)]
 
-    # Map NUTS ID prefix to region
     df['Region'] = df['nuts_id'].str[:3].map(GERMANY_NUTS_TO_REGION)
     unmapped = df[df['Region'].isna()]['nuts_id'].str[:3].unique()
     if len(unmapped) > 0:
@@ -127,9 +88,6 @@ def load_germany_yields():
     areas['value'] = pd.to_numeric(areas['value'])
     areas = areas.rename(columns={'value': 'area'})
 
-    # Area data only exists for census years (2007, 2010, 2016).
-    # For other years, use the nearest available area as weight.
-    # Build a lookup: district × crop → nearest area
     area_lookup = {}
     census_years = sorted(areas['year'].unique())
     print(f"    Area census years: {list(census_years)}")
@@ -139,7 +97,6 @@ def load_germany_yields():
         area_lookup[key] = row['area']
 
     def get_nearest_area(district_no, crop, year):
-        """Get area from nearest census year for this district-crop."""
         # Try exact year first
         if (district_no, crop, year) in area_lookup:
             return area_lookup[(district_no, crop, year)]
@@ -153,7 +110,6 @@ def load_germany_yields():
     yields = yields.dropna(subset=['area'])
     yields = yields[yields['area'] > 0]
 
-    # Aggregate districts to 4 regions using area-weighted yield
     all_rows = []
     for (year, region, crop), group in yields.groupby(['year', 'Region', 'Crop']):
         total_area = group['area'].sum()
@@ -177,20 +133,11 @@ def load_germany_yields():
 
     return result
 
-
-# ============================================================================
-# MAIN
-# ============================================================================
-
 def main():
-    print("=" * 70)
-    print("LOAD & PROCESS CROP YIELD DATA (FRANCE + GERMANY)")
-    print("=" * 70)
 
     os.makedirs(PATHS['france_processed'], exist_ok=True)
     os.makedirs(PATHS['germany_processed'], exist_ok=True)
 
-    # --- France ---
     france_df = load_france_yields()
 
     print(f"\n  France summary:")
@@ -208,7 +155,6 @@ def main():
     france_df.to_csv(france_path, index=False)
     print(f"\n    Saved: {france_path}")
 
-    # --- Germany ---
     germany_df = load_germany_yields()
 
     if len(germany_df) > 0:
@@ -226,11 +172,6 @@ def main():
         germany_path = os.path.join(PATHS['germany_processed'], 'germany_crop_yields_2004_2018.csv')
         germany_df.to_csv(germany_path, index=False)
         print(f"\n    Saved: {germany_path}")
-
-    print("\n" + "=" * 70)
-    print("DONE")
-    print("=" * 70)
-
     return france_df, germany_df
 
 

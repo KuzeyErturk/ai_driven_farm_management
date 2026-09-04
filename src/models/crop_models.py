@@ -10,24 +10,13 @@ from sklearn.model_selection import cross_val_score
 import warnings
 warnings.filterwarnings('ignore')
 
-print("="*70)
 print("CROP-SPECIFIC MODELS: Weather Becomes Important!")
-print("="*70)
-
-# ============================================================================
-# STEP 1: LOAD DATA
-# ============================================================================
 
 df = pd.read_csv('data/uk_crop_yield_with_seasonal_features_2004_2024.csv')
 df = df.drop('Production_tonnes', axis=1)
 
 print(f"\nDataset: {df.shape[0]} observations")
 print(f"Crops: {df['Crop'].unique()}")
-
-# ============================================================================
-# STEP 2: FEATURE SETS
-# ============================================================================
-
 # Baseline: Annual features
 baseline_features = [
     'Area_hectares',
@@ -64,9 +53,6 @@ seasonal_features = [
 
 print(f"\nFeatures: {len(baseline_features)} baseline, {len(seasonal_features)} seasonal")
 
-# ============================================================================
-# STEP 3: BUILD CROP-SPECIFIC MODELS
-# ============================================================================
 
 crops = df['Crop'].unique()
 results = []
@@ -101,9 +87,7 @@ for crop in crops:
     y_train = crop_data.loc[train_mask, 'Yield_t_per_ha']
     y_test = crop_data.loc[test_mask, 'Yield_t_per_ha']
     
-    # --------------------------------------------------------------------
-    # BASELINE MODEL (Annual Features)
-    # --------------------------------------------------------------------
+
     
     X_baseline_train = crop_data.loc[train_mask, baseline_features]
     X_baseline_test = crop_data.loc[test_mask, baseline_features]
@@ -122,7 +106,7 @@ for crop in crops:
     baseline_r2 = r2_score(y_test, y_pred_test_baseline)
     baseline_rmse = np.sqrt(mean_squared_error(y_test, y_pred_test_baseline))
     
-    print(f"\n📊 BASELINE (Annual Features):")
+    print(f"\nBASELINE (Annual Features):")
     print(f"   Test R²: {baseline_r2:.3f}")
     print(f"   Test RMSE: {baseline_rmse:.2f} t/ha")
     
@@ -131,10 +115,7 @@ for crop in crops:
         cv_scores = cross_val_score(ridge_baseline, X_baseline_train_scaled, y_train, 
                                     cv=min(5, n_train), scoring='r2')
         print(f"   CV R²: {cv_scores.mean():.3f} ± {cv_scores.std():.3f}")
-    
-    # --------------------------------------------------------------------
-    # SEASONAL MODEL (Seasonal Features)
-    # --------------------------------------------------------------------
+
     
     X_seasonal_train = crop_data.loc[train_mask, seasonal_features]
     X_seasonal_test = crop_data.loc[test_mask, seasonal_features]
@@ -153,7 +134,7 @@ for crop in crops:
     seasonal_r2 = r2_score(y_test, y_pred_test_seasonal)
     seasonal_rmse = np.sqrt(mean_squared_error(y_test, y_pred_test_seasonal))
     
-    print(f"\n🔥 SEASONAL (Seasonal Features):")
+    print(f"\n SEASONAL (Seasonal Features):")
     print(f"   Test R²: {seasonal_r2:.3f}")
     print(f"   Test RMSE: {seasonal_rmse:.2f} t/ha")
     
@@ -163,31 +144,28 @@ for crop in crops:
                                              cv=min(5, n_train), scoring='r2')
         print(f"   CV R²: {cv_scores_seasonal.mean():.3f} ± {cv_scores_seasonal.std():.3f}")
     
-    # --------------------------------------------------------------------
-    # COMPARISON
-    # --------------------------------------------------------------------
     
     improvement_r2 = seasonal_r2 - baseline_r2
     improvement_rmse = baseline_rmse - seasonal_rmse
     improvement_pct = (improvement_r2 / max(baseline_r2, 0.01)) * 100
     
-    print(f"\n💡 IMPROVEMENT:")
+    print(f"\nIMPROVEMENT:")
     print(f"   ΔR²: {improvement_r2:+.3f} ({improvement_pct:+.1f}%)")
     print(f"   ΔRMSE: {improvement_rmse:+.2f} t/ha")
     
     if seasonal_r2 > baseline_r2 + 0.05:
-        print(f"   ✅ SIGNIFICANT IMPROVEMENT - Seasonal features help!")
+        print(f"  SIGNIFICANT IMPROVEMENT - Seasonal features help!")
     elif seasonal_r2 > baseline_r2:
-        print(f"   ✓ Modest improvement")
+        print(f"  Modest improvement")
     else:
-        print(f"   ⚠️ No improvement (small sample or stable yields)")
+        print(f"No improvement (small sample or stable yields)")
     
     # Top features for this crop (from seasonal model)
     feature_importance = np.abs(ridge_seasonal.coef_)
     feature_names = seasonal_features
     top_indices = np.argsort(feature_importance)[-5:][::-1]
     
-    print(f"\n🌟 Top 5 Features for {crop}:")
+    print(f"\n Top 5 Features for {crop}:")
     for i, idx in enumerate(top_indices, 1):
         print(f"   {i}. {feature_names[idx]}: {ridge_seasonal.coef_[idx]:+.3f}")
     
@@ -207,24 +185,15 @@ for crop in crops:
         'Improvement_RMSE': improvement_rmse
     })
 
-# ============================================================================
-# STEP 4: SUMMARY TABLE
-# ============================================================================
 
-print("\n" + "="*70)
-print("📊 CROP-SPECIFIC MODEL SUMMARY")
-print("="*70)
+print("CROP-SPECIFIC MODEL SUMMARY")
+
 
 results_df = pd.DataFrame(results)
 print("\n" + results_df.to_string(index=False))
 
-# ============================================================================
-# STEP 5: VISUALIZATION
-# ============================================================================
 
-print("\n" + "="*70)
-print("📈 CREATING VISUALIZATIONS")
-print("="*70)
+print("CREATING VISUALISATIONS")
 
 # Plot 1: R² Comparison
 fig, axes = plt.subplots(1, 2, figsize=(14, 5))
@@ -265,7 +234,7 @@ ax2.grid(True, alpha=0.3, axis='y')
 
 plt.tight_layout()
 plt.savefig('plots/crop_specific_model_comparison.png', dpi=300, bbox_inches='tight')
-print("\n✓ Saved: plots/crop_specific_model_comparison.png")
+print("\nSaved: plots/crop_specific_model_comparison.png")
 plt.show()
 
 # Plot 2: Improvement by Crop
@@ -288,16 +257,10 @@ for i, (crop, val) in enumerate(zip(results_df['Crop'], results_df['Improvement_
 
 plt.tight_layout()
 plt.savefig('plots/seasonal_improvement_by_crop.png', dpi=300, bbox_inches='tight')
-print("✓ Saved: plots/seasonal_improvement_by_crop.png")
+print("Saved: plots/seasonal_improvement_by_crop.png")
 plt.show()
 
-# ============================================================================
-# STEP 6: KEY INSIGHTS
-# ============================================================================
-
-print("\n" + "="*70)
 print("🔍 KEY INSIGHTS")
-print("="*70)
 
 avg_baseline = results_df['Baseline_R2'].mean()
 avg_seasonal = results_df['Seasonal_R2'].mean()
@@ -318,21 +281,17 @@ most_improved_val = results_df['Improvement_R2'].max()
 
 print(f"Most Improved by Seasonal Features: {most_improved} (+{most_improved_val:.3f})")
 
-print("\n💡 INTERPRETATION:")
+print("\nINTERPRETATION:")
 if avg_seasonal > avg_baseline:
-    print(f"  ✅ Seasonal features improve predictions across crops!")
-    print(f"  → Without crop type dummy, weather becomes MORE important")
-    print(f"  → Average R² = {avg_seasonal:.3f} (weather-driven prediction)")
+    print(f"  Seasonal features improve predictions across crops!")
+    print(f"  Without crop type dummy, weather becomes MORE important")
+    print(f"  Average R² = {avg_seasonal:.3f} (weather-driven prediction)")
 else:
-    print(f"  ⚠️ Mixed results - some crops benefit, others don't")
-    print(f"  → UK yields may be too stable for strong weather prediction")
+    print(f"  Mixed results - some crops benefit, others don't")
+    print(f"  UK yields may be too stable for strong weather prediction")
 
-print("\n" + "="*70)
-print("🎉 CROP-SPECIFIC ANALYSIS COMPLETE!")
-print("="*70)
+print("CROP-SPECIFIC ANALYSIS COMPLETE!")
 
 print("\nFiles saved:")
-print("  • plots/crop_specific_model_comparison.png")
-print("  • plots/seasonal_improvement_by_crop.png")
-
-print("\nNext: Interpret results and write up findings!")
+print("  plots/crop_specific_model_comparison.png")
+print("  plots/seasonal_improvement_by_crop.png")

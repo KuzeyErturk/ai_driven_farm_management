@@ -1,22 +1,3 @@
-"""
-SHAP Analysis for Crop Yield Prediction Models
-================================================
-Generates SHAP-based feature importance plots for:
-  A) UK-only improved models (5 crops, hand-picked features)
-  B) Pooled cross-country models (Ridge alpha=10, all 47 features + country indicators)
-  C) Cross-country feature comparison (SHAP by country subset)
-
-Usage:
-    python src/models/shap_analysis.py
-
-Outputs saved to plots/:
-    shap_uk_summary_{crop}.png   — per-crop beeswarm
-    shap_uk_panel.png            — combined 5-crop bar chart
-    shap_pooled_top_features.png — pooled model top features per crop
-    shap_country_comparison.png  — feature importance by country
-    shap_waterfall_example.png   — single-observation waterfall explanation
-"""
-
 import os
 import sys
 import numpy as np
@@ -84,13 +65,7 @@ CROP_COLORS = {
     'Oats': '#9b59b6', 'OSR': '#e74c3c',
 }
 
-
-# ============================================================================
-# DATA LOADING
-# ============================================================================
-
 def load_uk_datasets():
-    """Load UK datasets for all 5 crops."""
     regional = pd.read_csv(os.path.join(PROJECT_ROOT, 'data', 'processed',
                                          'regional_crop_yield_weather_2004_2024.csv'))
     spring_barley = pd.read_csv(os.path.join(PROJECT_ROOT, 'data', 'processed',
@@ -107,7 +82,6 @@ def load_uk_datasets():
 
 
 def load_pooled_datasets():
-    """Load pooled (UK+France+Germany) datasets."""
     pooled_reg = pd.read_csv(os.path.join(PATHS['pooled'],
                                            'pooled_regional_crop_yield_weather_2004_2018.csv'))
     pooled_spring = pd.read_csv(os.path.join(PATHS['pooled'],
@@ -122,7 +96,6 @@ def load_pooled_datasets():
 
 
 def get_pooled_crop_data(pooled_data, crop):
-    """Get pooled DataFrame for a specific crop."""
     if crop == 'Spring_Barley':
         return pooled_data['pooled_spring'].copy()
     elif crop == 'Winter_Barley':
@@ -134,7 +107,6 @@ def get_pooled_crop_data(pooled_data, crop):
 
 
 def get_features_target(df, features_list):
-    """Extract X, y from dataframe. Drop features with all NaN or no variance."""
     available = [f for f in features_list if f in df.columns
                  and df[f].notna().any() and df[f].std() > 0.001]
     X = df[available].values
@@ -142,16 +114,7 @@ def get_features_target(df, features_list):
     mask = ~np.isnan(X).any(axis=1) & ~np.isnan(y)
     return X[mask], y[mask], available, mask
 
-
-# ============================================================================
-# PART A: UK-ONLY SHAP ANALYSIS
-# ============================================================================
-
 def run_uk_shap_analysis(uk_data):
-    """Train UK models on full data and compute SHAP values."""
-    print("\n" + "=" * 75)
-    print("PART A: UK-ONLY SHAP ANALYSIS")
-    print("=" * 75)
 
     uk_shap_results = {}
 
@@ -178,8 +141,6 @@ def run_uk_shap_analysis(uk_data):
             explainer = shap.LinearExplainer(model, X_scaled)
             shap_values = explainer.shap_values(X_scaled)
         elif model_type == 'SVR':
-            # SVR linear: use coefficients directly via LinearExplainer on a wrapper
-            # KernelExplainer is more general but slow; for linear SVR we use it
             explainer = shap.KernelExplainer(model.predict, X_scaled)
             shap_values = explainer.shap_values(X_scaled, nsamples=200)
         else:
@@ -211,7 +172,6 @@ def run_uk_shap_analysis(uk_data):
             'base_value': base_value,
         }
 
-        # Per-crop beeswarm plot
         fig, ax = plt.subplots(figsize=(8, 5))
         shap.summary_plot(shap_values, X_scaled, feature_names=avail, show=False)
         plt.title(f'SHAP Summary — {crop.replace("_", " ")} (UK, {model_type})')
@@ -221,14 +181,12 @@ def run_uk_shap_analysis(uk_data):
         plt.close('all')
         print(f"    Saved: {fname}")
 
-    # Combined 5-crop bar chart
     _plot_uk_panel(uk_shap_results)
 
     return uk_shap_results
 
 
 def _plot_uk_panel(uk_shap_results):
-    """Create combined bar chart of mean |SHAP| for all 5 UK crops."""
     fig, axes = plt.subplots(1, 5, figsize=(20, 5), sharey=False)
 
     for idx, crop in enumerate(CROPS):
@@ -253,11 +211,7 @@ def _plot_uk_panel(uk_shap_results):
     plt.close('all')
     print(f"\n  Saved combined panel: {fname}")
 
-
-# ============================================================================
-# PART B: POOLED CROSS-COUNTRY SHAP ANALYSIS
-# ============================================================================
-
+# This is PART B of pooling the SHAP Analysis
 def run_pooled_shap_analysis(pooled_data):
     """Train Ridge on pooled data with all 47 features + country indicators."""
     print("\n" + "=" * 75)
@@ -290,7 +244,7 @@ def run_pooled_shap_analysis(pooled_data):
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
 
-        # Train Ridge
+        # Train the ridge
         model = Ridge(alpha=10.0)
         model.fit(X_scaled, y)
 
@@ -342,7 +296,6 @@ def run_pooled_shap_analysis(pooled_data):
 
 
 def _plot_pooled_top_features(pooled_shap_results):
-    """Bar plot of top-15 features for each crop in the pooled model."""
     fig, axes = plt.subplots(2, 3, figsize=(18, 12))
     axes_flat = axes.flatten()
 
@@ -381,16 +334,9 @@ def _plot_pooled_top_features(pooled_shap_results):
     plt.close('all')
     print(f"\n  Saved: {fname}")
 
-
-# ============================================================================
-# PART C: CROSS-COUNTRY FEATURE COMPARISON
-# ============================================================================
+# THis is Part C : cross-country comparison
 
 def run_country_comparison(pooled_shap_results):
-    """Compare SHAP distributions across countries for the pooled models."""
-    print("\n" + "=" * 75)
-    print("PART C: CROSS-COUNTRY FEATURE COMPARISON")
-    print("=" * 75)
 
     # Pick a representative crop (Wheat) for detailed comparison
     focus_crop = 'Wheat'
@@ -425,7 +371,6 @@ def run_country_comparison(pooled_shap_results):
 
 
 def _plot_country_comparison(pooled_shap_results):
-    """Grouped bar chart: top-5 features by country for each crop."""
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
     axes_flat = axes.flatten()
     country_colors = {'UK': '#3498db', 'France': '#e74c3c', 'Germany': '#f39c12'}
@@ -473,8 +418,6 @@ def _plot_country_comparison(pooled_shap_results):
 
 
 def _plot_waterfall(pooled_shap_results):
-    """Waterfall plot for a notable observation (e.g., drought year)."""
-    # Find an interesting observation: pick Wheat, look for 2018 (drought year) or low-yield obs
     crop = 'Wheat'
     res = pooled_shap_results[crop]
     df = res['df']
@@ -521,10 +464,6 @@ def _plot_waterfall(pooled_shap_results):
     plt.close('all')
     print(f"  Saved: {fname}")
 
-
-# ============================================================================
-# MAIN
-# ============================================================================
 
 def main():
     print("=" * 75)

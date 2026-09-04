@@ -1,20 +1,3 @@
-"""
-Per-Country Feature Selection for Cross-Country Comparison
-============================================================
-Tests all 47 weather features per country × crop using multiple methods:
-1. Lasso (L1 regularization — automatic sparsity)
-2. ElasticNet (L1+L2 — handles correlated features)
-3. RF feature importance (non-linear relationships)
-
-Then compares:
-- UK-original features (from dissertation)
-- Per-country optimized features
-- Shared features (features important in ALL countries)
-
-Usage:
-    python src/france/feature_selection.py
-"""
-
 import os
 import sys
 import pandas as pd
@@ -33,11 +16,6 @@ from config import PATHS, YEAR_START, YEAR_END
 
 sys.path.insert(0, PATHS['models'])
 from baseline_model_config import CROP_FEATURES, IMPROVED_RESULTS
-
-
-# ============================================================================
-# CONFIG
-# ============================================================================
 
 CROPS = list(CROP_FEATURES.keys())
 
@@ -68,7 +46,6 @@ WEATHER_FEATURES = [
 
 
 def loocv_evaluate(model_fn, X, y):
-    """LOOCV with per-fold scaling."""
     if len(y) < 10:
         return np.nan, np.nan
     loo = LeaveOneOut()
@@ -84,7 +61,6 @@ def loocv_evaluate(model_fn, X, y):
 
 
 def load_data():
-    """Load all country datasets."""
     uk_reg = pd.read_csv(os.path.join(PATHS['uk_processed'],
                                       'regional_crop_yield_weather_2004_2024.csv'))
     uk_spring = pd.read_csv(os.path.join(PATHS['uk_processed'],
@@ -117,7 +93,6 @@ def load_data():
 
 
 def get_crop_df(datasets, crop, country):
-    """Get data for a crop × country."""
     if crop == 'Spring_Barley':
         key = 'spring'
     elif crop == 'Winter_Barley':
@@ -136,20 +111,13 @@ def get_crop_df(datasets, crop, country):
 
 
 def get_available_features(df):
-    """Get weather features that exist and have variance in the data."""
     available = []
     for f in WEATHER_FEATURES:
         if f in df.columns and df[f].notna().any() and df[f].std() > 0.001:
             available.append(f)
     return available
 
-
-# ============================================================================
-# FEATURE SELECTION METHODS
-# ============================================================================
-
 def lasso_feature_selection(X, y, feature_names, n_features=6):
-    """Use LassoCV to find optimal features."""
     sc = StandardScaler()
     X_sc = sc.fit_transform(X)
 
@@ -164,7 +132,6 @@ def lasso_feature_selection(X, y, feature_names, n_features=6):
     # Return top n_features
     selected = [feature_names[i] for i in top_idx[:n_features] if importance[i] > 0]
 
-    # If Lasso killed too many, use top by absolute coefficient
     if len(selected) < 3:
         selected = [feature_names[i] for i in top_idx[:n_features]]
 
@@ -172,7 +139,6 @@ def lasso_feature_selection(X, y, feature_names, n_features=6):
 
 
 def rf_feature_selection(X, y, feature_names, n_features=6):
-    """Use RF feature importance."""
     sc = StandardScaler()
     X_sc = sc.fit_transform(X)
 
@@ -188,7 +154,6 @@ def rf_feature_selection(X, y, feature_names, n_features=6):
 
 
 def combined_feature_selection(X, y, feature_names, n_features=6):
-    """Combine Lasso + RF rankings for robust selection."""
     lasso_feats, lasso_imp = lasso_feature_selection(X, y, feature_names, n_features=15)
     rf_feats, rf_imp = rf_feature_selection(X, y, feature_names, n_features=15)
 
@@ -208,23 +173,14 @@ def combined_feature_selection(X, y, feature_names, n_features=6):
 
     return selected
 
-
-# ============================================================================
-# MAIN EXPERIMENT
-# ============================================================================
-
 def main():
-    print("=" * 75)
-    print("PER-COUNTRY FEATURE SELECTION (ALL 47 FEATURES)")
-    print("=" * 75)
-
     datasets = load_data()
 
     # Store results
     country_features = {}  # {crop: {country: [features]}}
     all_results = {}       # {crop: {config_name: {country: r2}}}
 
-    # Best model per crop (from dissertation)
+    # Best model per crop
     BEST_MODELS = {
         'Wheat':         lambda: RandomForestRegressor(n_estimators=100, max_depth=8, min_samples_split=3, random_state=42),
         'Winter_Barley': lambda: RandomForestRegressor(n_estimators=200, max_depth=5, min_samples_split=3, random_state=42),
@@ -244,9 +200,7 @@ def main():
     }
 
     for crop in CROPS:
-        print(f"\n{'='*75}")
         print(f"  {crop}")
-        print(f"{'='*75}")
 
         country_features[crop] = {}
         all_results[crop] = {}
@@ -263,7 +217,6 @@ def main():
 
             print(f"\n  {country.upper()} (n={len(y)}, {len(all_feats)} features available)")
 
-            # --- Feature selection ---
             selected = combined_feature_selection(X_all, y, all_feats, n_features=6)
 
             # Ensure Area_hectares is included
@@ -273,7 +226,6 @@ def main():
             country_features[crop][country] = selected
             print(f"    Selected features: {selected}")
 
-            # --- Compare configurations ---
             configs = {
                 'UK_original': [f for f in CROP_FEATURES[crop] if f in df.columns and df[f].notna().any() and df[f].std() > 0.001],
                 'Country_optimized': selected,
@@ -307,7 +259,6 @@ def main():
 
                 print(f"    {config_name:<25} LOOCV R²={r2:.3f}  (n_feats={len(feats)})")
 
-        # --- Find shared features (important in at least 2 countries) ---
         feat_counts = {}
         for country in ['uk', 'france', 'germany']:
             for f in country_features[crop][country]:
@@ -331,17 +282,11 @@ def main():
                 all_results[crop]['Shared_features'] = {}
             all_results[crop]['Shared_features'][country] = r2
 
-    # ========================================================================
-    # SUMMARY TABLE
-    # ========================================================================
-    print("\n" + "=" * 75)
-    print("SUMMARY: LOOCV R² BY FEATURE CONFIGURATION")
-    print("=" * 75)
+    # Summary table
 
     for crop in CROPS:
         print(f"\n  {crop}:")
         print(f"    {'Configuration':<25} {'UK':>8} {'France':>8} {'Germany':>8} {'Average':>8}")
-        print(f"    {'-'*60}")
 
         for config in ['UK_original', 'Country_optimized', 'Shared_features', 'All_47_Ridge', 'All_47_Lasso']:
             if config not in all_results[crop]:
@@ -358,12 +303,6 @@ def main():
 
             print(f"    {config:<25} {uk_s} {fr_s} {de_s} {avg:>8.3f}")
 
-    # ========================================================================
-    # SELECTED FEATURES PER COUNTRY
-    # ========================================================================
-    print("\n" + "=" * 75)
-    print("OPTIMAL FEATURES PER COUNTRY × CROP")
-    print("=" * 75)
 
     for crop in CROPS:
         print(f"\n  {crop}:")
@@ -372,12 +311,6 @@ def main():
             feats = country_features[crop].get(country, [])
             print(f"    {country:<10} optimized: {feats}")
 
-    # ========================================================================
-    # BEST OVERALL CONFIGURATION
-    # ========================================================================
-    print("\n" + "=" * 75)
-    print("BEST CONFIGURATION PER CROP (HIGHEST AVERAGE R²)")
-    print("=" * 75)
 
     for crop in CROPS:
         best_config = None
@@ -402,10 +335,6 @@ def main():
     with open(out_path, 'w') as f:
         json.dump(output, f, indent=2)
     print(f"\n  Saved optimal features: {out_path}")
-
-    print("\n" + "=" * 75)
-    print("DONE")
-    print("=" * 75)
 
 
 if __name__ == '__main__':
