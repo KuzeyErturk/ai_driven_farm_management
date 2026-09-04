@@ -1,7 +1,6 @@
 # AI-Driven Crop Yield Prediction System
 
-Kuzey Erturk (F330035) — Final Year Project
-Supervised by Prof. Nina Dethlefs
+Kuzey Erturk - Loughborough University - Final Year Project
 
 ## Overview
 
